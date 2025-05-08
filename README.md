@@ -16,3 +16,10 @@ conda activate <your virtual env name>
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
 ```
+
+# How to run
+python3 train.py
+
+# How to add libralies
+Add the libraly name to requirements.txt
+Then run this: pip install -r requirements.txt
