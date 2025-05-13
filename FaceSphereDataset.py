@@ -70,4 +70,4 @@ class FaceSphereDataset(Dataset):
         if isinstance(sphere_img, torch.Tensor) and sphere_img.dtype != torch.float32:
             sphere_img = sphere_img.float()
         
-        return face_img, sphere_img
+        return face_img, sphere_img.unsqueeze(0)
