@@ -1,3 +1,6 @@
+# train.py
+# Execution command: python3 train.py --e 50 --mn model_name.pth
+
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,6 +13,9 @@ import segmentation_models_pytorch as smp
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from PIL import Image
+import argparse
+import time
+from torchmetrics import StructuralSimilarityIndexMeasure  # Import SSIM
 
 print(torch.cuda.is_available())     # Should be True
 print(torch.cuda.get_device_name(0)) # Should show your GPU model
@@ -49,13 +55,23 @@ transform = A.Compose([
 train_dataset = VOCDataset(root='./data', image_set="train", transforms=transform)
 train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
 
+
+# --- Command Line Argument Parser ---
+parser = argparse.ArgumentParser(description="Train U-Net on VOC dataset")
+parser.add_argument('--e', type=int, default=5,
+                    help='Number of iterations') # mn: model name
+parser.add_argument('--mn', type=str, default='unet_resnet34_voc_50.pth',
+                    help='Filename to save trained model') # mn: model name
+args = parser.parse_args()
+
+
 # --------------- U-Net model using ResNet34 encoder ---------------
 model = smp.Unet(
-    encoder_name="resnet34",
-    encoder_weights="imagenet",
+    encoder_name="resnet34", # encoder architecture is resnet
+    encoder_weights="imagenet", # this resnet pretrained on imagenet
     in_channels=3,
     classes=1,
-)
+) # encoder weight is frozen
 
 # Optional: use only encoder
 # encoder = model.encoder  # Uncomment if you want to use encoder only
@@ -64,49 +80,45 @@ model = smp.Unet(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
-criterion = nn.BCEWithLogitsLoss()
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
+# criterion = nn.BCEWithLogitsLoss()
+ssim = StructuralSimilarityIndexMeasure(data_range=1.0)  # Define SSIM metric
+
+def ssim_loss(x, y):
+    return 1 - ssim(x, y)  # Return 1 - SSIM to use it as a loss
+
+optimizer = optim.Adam(model.parameters(), lr=1e-5)
 
 # --------------- Training Loop ---------------
-def train(model, dataloader, optimizer, criterion, epochs=5):
+def train(model, dataloader, optimizer, criterion, epochs=args.e):
     model.train()
+    start_time = time.time()
     for epoch in range(epochs):
         epoch_loss = 0
         for images, masks in dataloader:
             images, masks = images.to(device), masks.to(device)
 
             outputs = model(images)
-            loss = criterion(outputs, masks)
+
+            # BCEWithLogitsLoss
+            # loss = criterion(outputs, masks)
+
+            # Using SSIM-based loss
+            loss = ssim_loss(outputs, masks)  # Replacing the old loss function
+
 
             optimizer.zero_grad()
-            loss.backward()
+            loss.backward() # TODO: change loss function
             optimizer.step()
 
             epoch_loss += loss.item()
 
         print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}")
 
+    end_time = time.time()  # End timing
+    print(f"\n Total training time: {(end_time - start_time):.2f} seconds")
+
 train(model, train_loader, optimizer, criterion)
 
-# --------------- Inference Example ---------------
-def visualize_prediction(model, dataset, idx=0):
-    model.eval()
-    image, mask = dataset[idx]
-    with torch.no_grad():
-        pred = torch.sigmoid(model(image.unsqueeze(0).to(device)))
-        pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
+# save model
+torch.save(model.state_dict(), args.mn)
 
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 3, 1)
-    plt.imshow(image.permute(1, 2, 0).numpy())
-    plt.title("Image")
-    plt.subplot(1, 3, 2)
-    plt.imshow(mask.squeeze().numpy(), cmap='gray')
-    plt.title("Ground Truth")
-    plt.subplot(1, 3, 3)
-    plt.imshow(pred_mask, cmap='gray')
-    plt.title("Prediction")
-    plt.show()
-
-# Visualize result
-visualize_prediction(model, train_dataset, idx=0)
