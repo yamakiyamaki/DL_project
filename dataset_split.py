@@ -30,7 +30,7 @@ def split_dataset(data_root, train_ratio=0.8):
     face_groups = {}
     for file in face_files:
         # Extract face ID (e.g., 'Face00')
-        face_id = int(file.split('_It')[0][4:])
+        face_id = file.split('_It')[0] # int(file.split('_It')[0][4:])
         if face_id not in face_groups:
             face_groups[face_id] = []
         face_groups[face_id].append(file)
