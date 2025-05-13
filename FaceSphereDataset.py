@@ -5,9 +5,11 @@ import os
 import glob
 import random
 import shutil
+from albumentations.pytorch import ToTensorV2
+import albumentations as A
 
 class FaceSphereDataset(Dataset):
-    def __init__(self, root_dir, split='train'):
+    def __init__(self, root_dir, split='train', transforms=None):
         """
         Args:
             root_dir: Path to the dataset main directory
@@ -15,7 +17,13 @@ class FaceSphereDataset(Dataset):
             transforms: Optional transform to be applied on images
         """
         self.root_dir = os.path.join(root_dir, split)
-        
+        self.transforms = transforms
+
+        if (not self.transforms):
+            self.transforms = A.Compose([
+                ToTensorV2()
+            ])
+
         # Get all the face images
         self.face_images = sorted(glob.glob(os.path.join(self.root_dir, "*_Face.png")))
         self.sphere_images = []
@@ -48,5 +56,10 @@ class FaceSphereDataset(Dataset):
         # Load corresponding sphere image
         sphere_img = Image.open(self.sphere_images[idx]).convert('RGB')
         sphere_img = np.array(sphere_img)
+
+        if self.transforms:
+            augmented = self.transforms(image=face_img, mask=sphere_img)
+            face_img = augmented['image']  # Should now be [C, H, W]
+            sphere_img = augmented['mask']
         
         return face_img, sphere_img
