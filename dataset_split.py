@@ -1,8 +1,10 @@
 import os
 import random
 import shutil
+import argparse
 
-def split_dataset(data_root, train_ratio=0.8):
+
+def split_dataset(data_root, train_ratio=0.8, random_seed=351):
     """
     Split the dataset into train and test sets.
     
@@ -40,7 +42,7 @@ def split_dataset(data_root, train_ratio=0.8):
     
     # Determine which face IDs go to train and test sets
     face_ids = list(face_groups.keys())
-    random.seed(42)  # For reproducibility
+    random.seed(random_seed)  # For reproducibility
     random.shuffle(face_ids)
     
     num_train = int(len(face_ids) * train_ratio)
@@ -65,4 +67,26 @@ def split_dataset(data_root, train_ratio=0.8):
         shutil.copy2(src, dst)
 
 # Split the dataset
-split_dataset('./data/dataset_256px_11f_100im/')
+# split_dataset('./data/dataset_256px_11f_100im/')
+
+if __name__ == "__main__":
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(description='Split dataset into train and test sets')
+    parser.add_argument('--data_dir', type=str, default='./data/dataset_256px_11f_100im/',
+                        help='Directory containing the dataset (default: ./data/dataset_256px_11f_100im/)')
+    parser.add_argument('--train_ratio', type=float, default=0.8,
+                        help='Ratio of data to use for training (default: 0.8)')
+    parser.add_argument('--random_seed', type=int, default=351,
+                        help='Random seed for reproducibility (default: 351)')
+    
+    args = parser.parse_args()
+    
+    print(f"Dataset split parameters:")
+    print(f"  Data directory: {args.data_dir}")
+    print(f"  Train ratio: {args.train_ratio}")
+    print(f"  Random seed: {args.random_seed}")
+    
+    # Split the dataset
+    split_dataset(args.data_dir, args.train_ratio, args.random_seed)
+    
+    print("Dataset splitting complete!")
