@@ -95,7 +95,7 @@ def visualize_prediction(model, dataset, idx=0):
     with torch.no_grad():
         pred = torch.sigmoid(model(image.unsqueeze(0).to(device)))
         pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
-
+    
     plt.figure(figsize=(12, 4))
     plt.subplot(1, 3, 1)
     plt.imshow(image.permute(1, 2, 0).numpy())
@@ -109,4 +109,5 @@ def visualize_prediction(model, dataset, idx=0):
     plt.show()
 
 # Visualize result
-visualize_prediction(model, train_dataset, idx=0)
+for i in range(5):
+ visualize_prediction(model, train_dataset, idx=i)
