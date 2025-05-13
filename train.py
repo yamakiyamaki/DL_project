@@ -67,6 +67,8 @@ parser.add_argument('--e', type=int, default=5,
                     help='Number of iterations') # mn: model name
 parser.add_argument('--mn', type=str, default='unet_resnet34_voc_50.pth',
                     help='Filename to save trained model') # mn: model name
+parser.add_argument('--lr', type=str, default=1.0,
+                    help='Learning rate')
 args = parser.parse_args()
 
 
@@ -91,10 +93,13 @@ ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
 def ssim_loss(x, y):
     return 1 - ssim(x, y)  # Return 1 - SSIM to use it as a loss
 
+mse = nn.MSELoss()
+l1 = nn.L1Loss()
+
 optimizer = optim.Adam(model.parameters(), lr=1e-4)
 
 # --------------- Training Loop ---------------
-def train(model, dataloader, optimizer, criterion, epochs=args.e):
+def train(model, dataloader, optimizer, criterion, epochs):
     model.train()
     start_time = time.time()
     for epoch in range(epochs):
@@ -104,12 +109,8 @@ def train(model, dataloader, optimizer, criterion, epochs=args.e):
 
             outputs = model(images)
 
-            # BCEWithLogitsLoss
-            # loss = criterion(outputs, masks)
-
             # Using SSIM-based loss
             loss = criterion(outputs, masks)  # Replacing the old loss function
-
 
             optimizer.zero_grad()
             loss.backward() 
@@ -122,7 +123,7 @@ def train(model, dataloader, optimizer, criterion, epochs=args.e):
     end_time = time.time()  # End timing
     print(f"\n Total training time: {(end_time - start_time):.2f} seconds")
 
-train(model, train_loader, optimizer, ssim_loss)
+train(model, train_loader, optimizer, mse, epochs=args.e)
 
 # save model
 torch.save(model.state_dict(), args.mn)

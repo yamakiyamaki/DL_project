@@ -18,7 +18,7 @@ pip install -r requirements.txt
 ```
 
 # How to run
-`python3 train.py --e 50 --mn model_name.pth` 
+`python3 train.py --e 50 --mn model_name.pth --lr 1e-4` 
 `python3 prediction.py --idx 5 --mn model_name.pth`
 
 * idx: A index of input image that you wanna predict
