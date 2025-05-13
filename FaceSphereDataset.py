@@ -1,3 +1,4 @@
+import torch
 from torch.utils.data import Dataset
 import numpy as np
 from PIL import Image
@@ -61,5 +62,12 @@ class FaceSphereDataset(Dataset):
             augmented = self.transforms(image=face_img, mask=sphere_img)
             face_img = augmented['image']  # Should now be [C, H, W]
             sphere_img = augmented['mask']
+
+        # Ensure tensors are floating point type
+        if isinstance(face_img, torch.Tensor) and face_img.dtype != torch.float32:
+            face_img = face_img.float()
+        
+        if isinstance(sphere_img, torch.Tensor) and sphere_img.dtype != torch.float32:
+            sphere_img = sphere_img.float()
         
         return face_img, sphere_img
