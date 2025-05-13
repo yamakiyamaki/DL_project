@@ -59,9 +59,10 @@ class FaceSphereDataset(Dataset):
         sphere_img = np.array(sphere_img)
 
         if self.transforms:
-            augmented = self.transforms(image=face_img, mask=sphere_img)
-            face_img = augmented['image']  # Should now be [C, H, W]
-            sphere_img = augmented['mask']
+            augmented_face = self.transforms(image=face_img)
+            augmented_sphere = self.transforms(image=sphere_img)
+            face_img = augmented_face['image']  # Should now be [C, H, W]
+            sphere_img = augmented_sphere['image']
 
         # Ensure tensors are floating point type
         if isinstance(face_img, torch.Tensor) and face_img.dtype != torch.float32:
@@ -70,4 +71,4 @@ class FaceSphereDataset(Dataset):
         if isinstance(sphere_img, torch.Tensor) and sphere_img.dtype != torch.float32:
             sphere_img = sphere_img.float()
         
-        return face_img, sphere_img.unsqueeze(0)
+        return face_img, sphere_img
