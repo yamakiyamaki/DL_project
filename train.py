@@ -1,5 +1,5 @@
 # train.py
-# Execution command: python3 train.py --e 50 --mn model_name.pth --lr 0.001 --bs 16 --loss ssim --sche 1
+# Execution command: python3 train.py --e 50 --mn model --lr 0.001 --bs 50 --loss ssim --sche 0
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -102,7 +102,7 @@ elif args.loss == "mse":
 elif args.loss == "l1":
     loss_func = nn.L1Loss().to(device)
 elif args.loss == "comb":
-    loss_func = MSE_SSIM_Loss(ssim_weight=0.9, mse_weight=0.1, device=device)  # Make sure the loss function is on the correct device
+    loss_func = MSE_SSIM_Loss(ssim_weight=0.5, mse_weight=0.5, device=device)  # Make sure the loss function is on the correct device
 
 
 # ---------------- Optimizer ---------------
@@ -146,7 +146,8 @@ def train(model, dataloader, optimizer, criterion, epochs):
 train(model, train_loader, optimizer, loss_func, epochs=args.e)
 
 # save model
-model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
+model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + \
+             '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
 torch.save(model.state_dict(), model_name)
 
 # --------------- Visualization ---------------
@@ -181,8 +182,22 @@ def visualize_prediction(model, dataset, idx=0):
     plt.title("Prediction (RGB)")
     plt.show()
 
+    if idx == 0 or idx == 1:
+        # Save the plot as an image file in the /output directory
+        outfile = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + \
+                  str(args.e) + '_lr' + str(args.lr) + '_sche' + str(args.sche) + '_' + str(idx) + '.png'
+        plt.tight_layout()
+        plt.savefig(f"{output_dir}/{outfile}")
+        plt.close()
+
+# save
+output_dir = './train_output'
+os.makedirs(output_dir, exist_ok=True)
+
 # Visualize result
 for i in range(5):
- visualize_prediction(model, train_dataset, idx=i)
+    visualize_prediction(model, train_dataset, idx=i)
+
+
 
 
