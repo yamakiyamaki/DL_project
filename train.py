@@ -30,7 +30,7 @@ print(torch.cuda.get_device_name(0)) # Should show your GPU model
 parser = argparse.ArgumentParser(description="Train U-Net on VOC dataset")
 parser.add_argument('--e', type=int, default=5,
                     help='Number of iterations') # mn: model name
-parser.add_argument('--mn', type=str, default='unet_resnet34_voc_50.pth',
+parser.add_argument('--mn', type=str, default='unet.pth',
                     help='Filename to save trained model') # mn: model name
 parser.add_argument('--lr', type=float, default=0.001,
                     help='Learning rate')
@@ -42,9 +42,15 @@ parser.add_argument('--sche', type=int, default=0,
                     help='use cyclic learning rate scheduler: 0 or 1')
 args = parser.parse_args()
 
+# --------------- Transforms ---------------
+transform = A.Compose([
+    A.Resize(256, 256),
+    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    ToTensorV2()
+])
 
 # --------------- Dataloader ---------------
-train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train')
+train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms=transform)
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 
 
@@ -96,14 +102,14 @@ elif args.loss == "mse":
 elif args.loss == "l1":
     loss_func = nn.L1Loss().to(device)
 elif args.loss == "comb":
-    loss_func = MSE_SSIM_Loss(ssim_weight=0.5, mse_weight=0.5, device=device)  # Make sure the loss function is on the correct device
+    loss_func = MSE_SSIM_Loss(ssim_weight=0.9, mse_weight=0.1, device=device)  # Make sure the loss function is on the correct device
 
 
 # ---------------- Optimizer ---------------
 optimizer = optim.Adam(model.parameters(), lr=args.lr)
 
 # ---------------- Learning Rate Scheduler --------------
-scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=1e-3, step_size_up=2000, step_size_down=2000, mode='triangular')
+scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=10.0, step_size_up=2000, step_size_down=2000, mode='triangular')
 
 # --------------- Training Loop ---------------
 def train(model, dataloader, optimizer, criterion, epochs):
@@ -118,6 +124,7 @@ def train(model, dataloader, optimizer, criterion, epochs):
 
             # Using SSIM-based loss
             loss = criterion(outputs, masks)  # Replacing the old loss function
+            # print(loss) # to check ssim is between 0 to 1.
 
             optimizer.zero_grad()
             loss.backward() 
@@ -129,7 +136,7 @@ def train(model, dataloader, optimizer, criterion, epochs):
 
             epoch_loss += loss.item()
 
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}")
+        print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}, Loss for one batch:{loss}")
         if args.sche==True:
             print("Current learning rate: ", scheduler.get_lr())   
 
@@ -139,7 +146,8 @@ def train(model, dataloader, optimizer, criterion, epochs):
 train(model, train_loader, optimizer, loss_func, epochs=args.e)
 
 # save model
-torch.save(model.state_dict(), args.mn)
+model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
+torch.save(model.state_dict(), model_name)
 
 # --------------- Visualization ---------------
 def normalize(img):
@@ -161,12 +169,12 @@ def visualize_prediction(model, dataset, idx=0):
         pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
 
     # Plotting
-    plt.figure(figsize=(12, 4))
+    plt.figure(figsize=(10, 4))
     plt.subplot(1, 3, 1)
-    plt.imshow(normalize(image))
+    plt.imshow(unnormalize(image))
     plt.title("Image")
     plt.subplot(1, 3, 2)
-    plt.imshow(normalize(mask))
+    plt.imshow(unnormalize(mask))
     plt.title("Ground Truth (RGB)")
     plt.subplot(1, 3, 3)
     plt.imshow(unnormalize(pred_mask))
