@@ -76,8 +76,11 @@ model = smp.Unet(
     encoder_weights="imagenet", # this resnet pretrained on imagenet
     in_channels=3,
     classes=3,
+<<<<<<< HEAD
     # out_channels=3,
     # decoder_channels=(256, 128, 64, 32, 16),  # decoder channel sizes
+=======
+>>>>>>> 33d3548d2bd79b3e7bbd9a06d5bf07742789d99d
 ) # encoder weight is frozen
 
 # Optional: use only encoder
@@ -88,8 +91,13 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
 # criterion = nn.BCEWithLogitsLoss()
+<<<<<<< HEAD
 ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)  # Define SSIM metric
 
+=======
+# ssim = StructuralSimilarityIndexMeasure(data_range=1.0)  # Define SSIM metric
+ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
+>>>>>>> 33d3548d2bd79b3e7bbd9a06d5bf07742789d99d
 def ssim_loss(x, y):
     return 1 - ssim(x, y)  # Return 1 - SSIM to use it as a loss
 
@@ -114,7 +122,7 @@ def train(model, dataloader, optimizer, criterion, epochs=args.e):
 
 
             optimizer.zero_grad()
-            loss.backward() # TODO: change loss function
+            loss.backward() 
             optimizer.step()
 
             epoch_loss += loss.item()
@@ -130,10 +138,44 @@ train(model, train_loader, optimizer, ssim_loss)
 torch.save(model.state_dict(), args.mn)
 
 # --------------- Inference Example ---------------
+# def visualize_prediction(model, dataset, idx=0):
+#     model.eval()
+#     image, mask = dataset[idx]
+#     with torch.no_grad():
+#         pred = torch.sigmoid(model(image.unsqueeze(0).to(device)))
+#         pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
+        
+#         # Reshape the prediction to (256, 256, 3) by repeating along the last axis
+#         mask_rgb = np.transpose(mask, (1, 2, 0))
+#         pred_mask_rgb = np.transpose(pred_mask, (1, 2, 0))
+    
+#     plt.figure(figsize=(12, 4))
+#     plt.subplot(1, 3, 1)
+#     plt.imshow(image.permute(1, 2, 0).cpu().numpy())
+#     plt.title("Image")
+#     plt.subplot(1, 3, 2)
+#     plt.imshow(mask_rgb)
+#     plt.title("Ground Truth (RGB)")
+#     plt.subplot(1, 3, 3)
+#     plt.imshow(pred_mask_rgb)
+#     plt.title("Prediction (RGB)")
+#     plt.show()
+def normalize(img):
+    img = np.array(img).astype(np.float32) / 255.0 
+    img = np.transpose(img, (1, 2, 0))
+    return img
+
+def unnormalize(img):
+    mean = np.array([0.485, 0.456, 0.406])
+    std = np.array([0.229, 0.224, 0.225])
+    img = np.transpose(img, (1, 2, 0))
+    return np.clip((img * std + mean), 0, 1)
+
 def visualize_prediction(model, dataset, idx=0):
     model.eval()
-    image, mask = dataset[idx]
+    image, mask = dataset[idx]  # image: tensor (3,H,W), mask: (1,H,W) or (3,H,W)
     with torch.no_grad():
+<<<<<<< HEAD
         # Remove sigmoid since we're working with 3 channels
         pred = model(image.unsqueeze(0).to(device))
         pred = pred.squeeze().cpu().numpy()
@@ -156,6 +198,26 @@ def visualize_prediction(model, dataset, idx=0):
     plt.subplot(1, 3, 3)
     plt.imshow(pred)
     plt.title("Prediction")
+=======
+        pred = torch.sigmoid(model(image.unsqueeze(0).to(device)))
+        pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
+
+    # pred_mask_rgb = np.transpose(pred_mask, (1, 2, 0))
+    # if pred_mask_rgb.shape[2] == 1:
+    #     pred_mask_rgb = np.repeat(pred_mask_rgb, 3, axis=2)
+
+    # Plotting
+    plt.figure(figsize=(12, 4))
+    plt.subplot(1, 3, 1)
+    plt.imshow(normalize(image))
+    plt.title("Image")
+    plt.subplot(1, 3, 2)
+    plt.imshow(normalize(mask))
+    plt.title("Ground Truth (RGB)")
+    plt.subplot(1, 3, 3)
+    plt.imshow(unnormalize(pred_mask))
+    plt.title("Prediction (RGB)")
+>>>>>>> 33d3548d2bd79b3e7bbd9a06d5bf07742789d99d
     plt.show()
 # Visualize result
 for i in range(5):
