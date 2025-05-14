@@ -178,7 +178,7 @@ cython_debug/
 .pypirc
 
 # saved model file
-.pth
+*.pth
 
 # saved training output images
 /train_output/
