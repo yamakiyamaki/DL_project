@@ -55,7 +55,7 @@ train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 
 
 # --------------- U-Net model using ResNet34 encoder ---------------
-model = smp.Unet(
+model = smp.Unet( # TODO: maybe I can retrain the last few layers of the encoder
     encoder_name="resnet34", # encoder architecture is resnet
     encoder_weights="imagenet", # this resnet pretrained on imagenet
     in_channels=3,
@@ -162,26 +162,31 @@ def unnormalize(img):
     img = np.transpose(img, (1, 2, 0))
     return np.clip((img * std + mean), 0, 1)
 
-def visualize_prediction(model, dataset, idx=0):
+def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is correct. bc background color
     model.eval()
     image, mask = dataset[idx]  # image: tensor (3,H,W), mask: (1,H,W) or (3,H,W)
     with torch.no_grad():
         pred = torch.sigmoid(model(image.unsqueeze(0).to(device)))
-        pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
+        # pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
+        pred_mask = pred.squeeze().cpu().numpy()
+        
 
     # Plotting
     plt.figure(figsize=(10, 4))
-    plt.subplot(1, 3, 1)
+    plt.subplot(1, 4, 1)
     plt.imshow(unnormalize(image))
     plt.title("Image")
-    plt.subplot(1, 3, 2)
+    plt.subplot(1, 4, 2)
     plt.imshow(unnormalize(mask))
     plt.title("Ground Truth (RGB)")
-    plt.subplot(1, 3, 3)
+    plt.subplot(1, 4, 3)
     plt.imshow(unnormalize(pred_mask))
     plt.title("Prediction (RGB)")
-    plt.show()
-
+    plt.subplot(1, 4, 4)
+    pred_mask = np.transpose(pred_mask, (1, 2, 0))
+    plt.imshow(pred_mask)
+    plt.title("without normalize")
+    
     if idx == 0 or idx == 1:
         # Save the plot as an image file in the /output directory
         outfile = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + \
@@ -189,6 +194,8 @@ def visualize_prediction(model, dataset, idx=0):
         plt.tight_layout()
         plt.savefig(f"{output_dir}/{outfile}")
         plt.close()
+    
+    plt.show()
 
 # save
 output_dir = './train_output'
