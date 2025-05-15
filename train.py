@@ -1,5 +1,5 @@
 # train.py
-# Execution command: python3 train.py --e 50 --mn model_name.pth
+# Execution command: python3 train.py --e 50 --mn model --lr 0.001 --bs 50 --loss ssim --sche 0
 import sys
 import os
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
@@ -18,71 +18,51 @@ from PIL import Image
 import argparse
 import time
 from torchmetrics import StructuralSimilarityIndexMeasure  # Import SSIM
+from torch.optim.lr_scheduler import CyclicLR
+from tqdm import tqdm
 
 from FaceSphereDataset import FaceSphereDataset
 
 print(torch.cuda.is_available())     # Should be True
 print(torch.cuda.get_device_name(0)) # Should show your GPU model
 
-# --------------- Custom Dataset using VOC as example ---------------
-# class VOCDataset(Dataset):
-#     def __init__(self, root, image_set="train", transforms=None):
-#         self.dataset = VOCSegmentation(root=root, year="2012", image_set=image_set, download=True)
-#         self.transforms = transforms
-
-#     def __len__(self):
-#         return len(self.dataset)
-
-#     def __getitem__(self, idx):
-#         image, mask = self.dataset[idx]
-#         image = np.array(image)
-#         mask = np.array(mask)
-
-#         # Convert mask to binary (e.g., segment class 15 only)
-#         mask = (mask == 15).astype(np.float32)
-
-#         if self.transforms:
-#             augmented = self.transforms(image=image, mask=mask)
-#             image = augmented['image']
-#             mask = augmented['mask']
-
-#         return image, mask.unsqueeze(0)  # Add channel dimension
-
-# # --------------- Transforms ---------------
-# transform = A.Compose([
-#     A.Resize(256, 256),
-#     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-#     ToTensorV2()
-# ])
-
-# --------------- Dataloader ---------------
-# train_dataset = VOCDataset(root='./data', image_set="train", transforms=transform)
-train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train')
-train_loader = DataLoader(train_dataset, batch_size=4, shuffle=True)
-
 
 # --- Command Line Argument Parser ---
 parser = argparse.ArgumentParser(description="Train U-Net on VOC dataset")
 parser.add_argument('--e', type=int, default=5,
                     help='Number of iterations') # mn: model name
-parser.add_argument('--mn', type=str, default='unet_resnet34_voc_50.pth',
+parser.add_argument('--mn', type=str, default='unet.pth',
                     help='Filename to save trained model') # mn: model name
+parser.add_argument('--lr', type=float, default=0.00001,
+                    help='Learning rate')
+parser.add_argument('--bs', type=int, default=16,
+                    help='batch size')
+parser.add_argument('--loss', type=str, default="ssim",
+                    help='loss function: ssim, mse, l1, comb')
+parser.add_argument('--sche', type=int, default=0,
+                    help='use cyclic learning rate scheduler: 0 or 1')
 args = parser.parse_args()
 
+# --------------- Transforms ---------------
+transform = A.Compose([
+    A.Resize(256, 256),
+    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    ToTensorV2()
+])
 
+# --------------- Dataloader ---------------
+train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms=transform)
+train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
+
+test_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='test', transforms=transform)
+test_loader = DataLoader(test_dataset, batch_size=args.bs, shuffle=False)
 # --------------- U-Net model using ResNet34 encoder ---------------
 model = smp.Unet(
-    encoder_name="resnet34", # encoder architecture is resnet
-    encoder_weights="imagenet", # this resnet pretrained on imagenet
+    # encoder_name="resnet34", # encoder architecture is resnet
+    # encoder_weights="imagenet", # this resnet pretrained on imagenet
     in_channels=3,
     classes=3,
-<<<<<<< HEAD
-    # out_channels=3,
-    # decoder_channels=(256, 128, 64, 32, 16),  # decoder channel sizes
-=======
->>>>>>> 33d3548d2bd79b3e7bbd9a06d5bf07742789d99d
 ) # encoder weight is frozen
-
 # Optional: use only encoder
 # encoder = model.encoder  # Uncomment if you want to use encoder only
 
@@ -90,76 +70,90 @@ model = smp.Unet(
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = model.to(device)
 
-# criterion = nn.BCEWithLogitsLoss()
-<<<<<<< HEAD
-ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)  # Define SSIM metric
-
-=======
-# ssim = StructuralSimilarityIndexMeasure(data_range=1.0)  # Define SSIM metric
+# ---------------- Loss function ---------------
+# ssim
 ssim = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
->>>>>>> 33d3548d2bd79b3e7bbd9a06d5bf07742789d99d
 def ssim_loss(x, y):
     return 1 - ssim(x, y)  # Return 1 - SSIM to use it as a loss
 
-optimizer = optim.Adam(model.parameters(), lr=1e-4)
+# ssim + mse
+class MSE_SSIM_Loss(nn.Module):
+    def __init__(self, ssim_weight=0.5, mse_weight=0.5, device='cpu'):
+        super(MSE_SSIM_Loss, self).__init__()
+        self.device = device
+        self.ssim_loss = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)  # Send SSIM to device
+        self.mse_loss = nn.MSELoss().to(device)  # Send MSE to device
+        self.ssim_weight = ssim_weight
+        self.mse_weight = mse_weight
+
+    def forward(self, output, target):
+        # Calculate MSE loss
+        mse = self.mse_loss(output, target)
+        
+        # Calculate SSIM loss
+        ssim = 1 - self.ssim_loss(output, target)  # SSIM is typically between 0 and 1, so we subtract it from 1 to turn it into a loss
+        
+        # Combine MSE and SSIM losses
+        total_loss = self.mse_weight * mse + self.ssim_weight * ssim
+        return total_loss
+
+if args.loss == "ssim":
+    loss_func = ssim_loss
+elif args.loss == "mse":       
+    loss_func = nn.MSELoss().to(device)
+elif args.loss == "l1":
+    loss_func = nn.L1Loss().to(device)
+elif args.loss == "comb":
+    loss_func = MSE_SSIM_Loss(ssim_weight=0.5, mse_weight=0.5, device=device)  # Make sure the loss function is on the correct device
+
+
+# ---------------- Optimizer ---------------
+optimizer = optim.Adam(model.parameters(), lr=args.lr)
+
+# ---------------- Learning Rate Scheduler --------------
+scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=10.0, step_size_up=2000, step_size_down=2000, mode='triangular')
 
 # --------------- Training Loop ---------------
-def train(model, dataloader, optimizer, criterion, epochs=args.e):
+def train1(model, dataloader, optimizer, criterion, epochs):
     model.train()
     start_time = time.time()
     for epoch in range(epochs):
         epoch_loss = 0
-        for images, masks in dataloader:
+
+        prgbar= tqdm(dataloader)
+        for images, masks in prgbar:
             images, masks = images.to(device), masks.to(device)
 
             outputs = model(images)
 
-            # BCEWithLogitsLoss
-            # loss = criterion(outputs, masks)
-
             # Using SSIM-based loss
             loss = criterion(outputs, masks)  # Replacing the old loss function
-
+            # print(loss) # to check ssim is between 0 to 1.
 
             optimizer.zero_grad()
             loss.backward() 
             optimizer.step()
 
-            epoch_loss += loss.item()
+            # Step the CLR scheduler after each optimizer step
+            if args.sche==True:
+                scheduler.step()
 
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}")
+            epoch_loss += loss.item()
+        print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}, Loss for one batch:{loss}")
+        if args.sche==True:
+            print("Current learning rate: ", scheduler.get_lr())   
 
     end_time = time.time()  # End timing
     print(f"\n Total training time: {(end_time - start_time):.2f} seconds")
 
-train(model, train_loader, optimizer, ssim_loss)
+train1(model, train_loader, optimizer, loss_func, epochs=args.e)
 
 # save model
-torch.save(model.state_dict(), args.mn)
+model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + \
+             '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
+torch.save(model.state_dict(), model_name)
 
-# --------------- Inference Example ---------------
-# def visualize_prediction(model, dataset, idx=0):
-#     model.eval()
-#     image, mask = dataset[idx]
-#     with torch.no_grad():
-#         pred = torch.sigmoid(model(image.unsqueeze(0).to(device)))
-#         pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
-        
-#         # Reshape the prediction to (256, 256, 3) by repeating along the last axis
-#         mask_rgb = np.transpose(mask, (1, 2, 0))
-#         pred_mask_rgb = np.transpose(pred_mask, (1, 2, 0))
-    
-#     plt.figure(figsize=(12, 4))
-#     plt.subplot(1, 3, 1)
-#     plt.imshow(image.permute(1, 2, 0).cpu().numpy())
-#     plt.title("Image")
-#     plt.subplot(1, 3, 2)
-#     plt.imshow(mask_rgb)
-#     plt.title("Ground Truth (RGB)")
-#     plt.subplot(1, 3, 3)
-#     plt.imshow(pred_mask_rgb)
-#     plt.title("Prediction (RGB)")
-#     plt.show()
+# --------------- Visualization ---------------
 def normalize(img):
     img = np.array(img).astype(np.float32) / 255.0 
     img = np.transpose(img, (1, 2, 0))
@@ -175,52 +169,40 @@ def visualize_prediction(model, dataset, idx=0):
     model.eval()
     image, mask = dataset[idx]  # image: tensor (3,H,W), mask: (1,H,W) or (3,H,W)
     with torch.no_grad():
-<<<<<<< HEAD
-        # Remove sigmoid since we're working with 3 channels
-        pred = model(image.unsqueeze(0).to(device))
-        pred = pred.squeeze().cpu().numpy()
-        # Transpose prediction to (H, W, C) for plotting
-        pred = np.transpose(pred, (1, 2, 0))
-        # Clip values to valid range
-        pred = np.clip(pred, 0, 1)
-    
-    plt.figure(figsize=(12, 4))
-    plt.subplot(1, 3, 1)
-    plt.imshow(image.permute(1, 2, 0).numpy())
-    plt.title("Input Image")
-    
-    plt.subplot(1, 3, 2)
-    # Assuming mask is (C, H, W), convert to (H, W, C)
-    mask_display = mask.permute(1, 2, 0).numpy()
-    plt.imshow(mask_display)
-    plt.title("Ground Truth")
-    
-    plt.subplot(1, 3, 3)
-    plt.imshow(pred)
-    plt.title("Prediction")
-=======
         pred = torch.sigmoid(model(image.unsqueeze(0).to(device)))
-        pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
+        # pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
+        pred_mask = (pred.squeeze().cpu().numpy())
 
-    # pred_mask_rgb = np.transpose(pred_mask, (1, 2, 0))
-    # if pred_mask_rgb.shape[2] == 1:
-    #     pred_mask_rgb = np.repeat(pred_mask_rgb, 3, axis=2)
+        pred_mask = np.transpose(pred_mask, (1, 2, 0))  # Change to (H,W,C) format
 
     # Plotting
-    plt.figure(figsize=(12, 4))
+    plt.figure(figsize=(10, 4))
     plt.subplot(1, 3, 1)
-    plt.imshow(normalize(image))
+    plt.imshow(unnormalize(image))
     plt.title("Image")
     plt.subplot(1, 3, 2)
-    plt.imshow(normalize(mask))
+    plt.imshow(unnormalize(mask))
     plt.title("Ground Truth (RGB)")
     plt.subplot(1, 3, 3)
-    plt.imshow(unnormalize(pred_mask))
+    plt.imshow((pred_mask))
     plt.title("Prediction (RGB)")
->>>>>>> 33d3548d2bd79b3e7bbd9a06d5bf07742789d99d
     plt.show()
+
+    if idx == 0 or idx == 1:
+        # Save the plot as an image file in the /output directory
+        outfile = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + \
+                  str(args.e) + '_lr' + str(args.lr) + '_sche' + str(args.sche) + '_' + str(idx) + '.png'
+        plt.tight_layout()
+        plt.savefig(f"{output_dir}/{outfile}")
+        plt.close()
+
+# save
+output_dir = './train_output'
+os.makedirs(output_dir, exist_ok=True)
+
 # Visualize result
 for i in range(5):
- visualize_prediction(model, train_dataset, idx=i)
+    visualize_prediction(model, test_dataset, idx=i)
+
 
 
