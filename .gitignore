@@ -176,3 +176,9 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+
+# saved model file
+*.pth
+
+# saved training output images
+/train_output/
