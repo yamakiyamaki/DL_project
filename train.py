@@ -117,13 +117,13 @@ def train(model, dataloader, optimizer, criterion, epochs):
     start_time = time.time()
     for epoch in range(epochs):
         epoch_loss = 0
-        for images, masks in dataloader:
-            images, masks = images.to(device), masks.to(device)
+        for inputs, gtruth in dataloader:
+            inputs, gtruth = inputs.to(device), gtruth.to(device)
 
-            outputs = model(images)
+            outputs = model(inputs)
 
             # Using SSIM-based loss
-            loss = criterion(outputs, masks)  # Replacing the old loss function
+            loss = criterion(outputs, gtruth)  # Replacing the old loss function
             # print(loss) # to check ssim is between 0 to 1.
 
             optimizer.zero_grad()
@@ -164,28 +164,24 @@ def unnormalize(img):
 
 def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is correct. bc background color
     model.eval()
-    image, mask = dataset[idx]  # image: tensor (3,H,W), mask: (1,H,W) or (3,H,W)
+    inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
-        pred = torch.sigmoid(model(image.unsqueeze(0).to(device)))
-        # pred_mask = (pred.squeeze().cpu().numpy() > 0.5).astype(np.uint8)
-        pred_mask = pred.squeeze().cpu().numpy()
+        pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
+        pred = pred.squeeze().cpu().numpy()
         
 
     # Plotting
     plt.figure(figsize=(10, 4))
-    plt.subplot(1, 4, 1)
-    plt.imshow(unnormalize(image))
+    plt.subplot(1, 3, 1)
+    plt.imshow(unnormalize(inputs))
     plt.title("Image")
-    plt.subplot(1, 4, 2)
-    plt.imshow(unnormalize(mask))
+    plt.subplot(1, 3, 2)
+    plt.imshow(unnormalize(gtruth))
     plt.title("Ground Truth (RGB)")
-    plt.subplot(1, 4, 3)
-    plt.imshow(unnormalize(pred_mask))
-    plt.title("Prediction (RGB)")
-    plt.subplot(1, 4, 4)
-    pred_mask = np.transpose(pred_mask, (1, 2, 0))
-    plt.imshow(pred_mask)
-    plt.title("without normalize")
+    plt.subplot(1, 3, 3)
+    pred = np.transpose(pred, (1, 2, 0))
+    plt.imshow(pred) # We do not need unnormalize for output
+    plt.title("Prediction (RGB)") 
     
     if idx == 0 or idx == 1:
         # Save the plot as an image file in the /output directory
