@@ -146,12 +146,22 @@ def train1(model, dataloader, optimizer, criterion, epochs):
     end_time = time.time()  # End timing
     print(f"\n Total training time: {(end_time - start_time):.2f} seconds")
 
-train1(model, train_loader, optimizer, loss_func, epochs=args.e)
+# train1(model, train_loader, optimizer, loss_func, epochs=args.e)
+
+# model = smp.Unet(
+#     # encoder_name="resnet34", # encoder architecture is resnet
+#     # encoder_weights="imagenet", # this resnet pretrained on imagenet
+#     in_channels=3,
+#     classes=3,
+# ) 
+model.load_state_dict(torch.load("face2ball_v0.pth", weights_only=True))
+model.eval()
+
 
 # save model
-model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + \
-             '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
-torch.save(model.state_dict(), model_name)
+# model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + \
+#              '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
+# torch.save(model.state_dict(), model_name)
 
 # --------------- Visualization ---------------
 def normalize(img):
