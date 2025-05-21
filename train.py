@@ -43,14 +43,14 @@ parser.add_argument('--sche', type=int, default=0,
 args = parser.parse_args()
 
 # --------------- Transforms ---------------
-transform = A.Compose([
+transform_face = A.Compose([
     A.Resize(256, 256),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ToTensorV2()
 ])
 
 # --------------- Dataloader ---------------
-train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms=transform)
+train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transform_face=transform_face)
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 
 
@@ -111,16 +111,24 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 # ---------------- Learning Rate Scheduler --------------
 scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=10.0, step_size_up=2000, step_size_down=2000, mode='triangular')
 
+
+
 # --------------- Training Loop ---------------
 def train(model, dataloader, optimizer, criterion, epochs):
     model.train()
+    mask = FaceSphereDataset.maksTensor.to(device)
+
     start_time = time.time()
     for epoch in range(epochs):
         epoch_loss = 0
         for inputs, gtruth in dataloader:
             inputs, gtruth = inputs.to(device), gtruth.to(device)
-
+            
             outputs = model(inputs)
+
+            ### USE MASK ON PREDICTION AND GROUND TRUTH
+            gtruth = gtruth * mask #.int().float()
+            outputs = outputs * mask #.int().float()
 
             # Using SSIM-based loss
             loss = criterion(outputs, gtruth)  # Replacing the old loss function
