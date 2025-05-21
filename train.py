@@ -55,7 +55,12 @@ transform_sphere = A.Compose([
 ])
 
 # --------------- Dataloader ---------------
-train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms_face=transform_face)
+train_dataset = FaceSphereDataset(
+    root_dir='./data/dataset_256px_11f_100im', 
+    split='train', 
+    transforms_face=transform_face, 
+    transforms_sphere = transform_sphere
+)
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 
 
@@ -132,8 +137,8 @@ def train(model, dataloader, optimizer, criterion, epochs):
             outputs = model(inputs)
 
             ### USE MASK ON PREDICTION AND GROUND TRUTH
-            # gtruth = gtruth * mask.int().float()
-            # outputs = outputs * mask.int().float()
+            gtruth = gtruth * mask.int().float()
+            outputs = outputs * mask.int().float()
 
             # Using SSIM-based loss
             loss = criterion(outputs, gtruth)  # Replacing the old loss function
@@ -175,13 +180,29 @@ def unnormalize(img):
     img = np.transpose(img, (1, 2, 0))
     return np.clip((img * std + mean), 0, 1)
 
+def minmaxscale(img):
+    img = np.array(img).astype(np.float32) / 255.0 
+    img = np.transpose(img, (1, 2, 0))
+    #img = (img - np.min(img)) / (np.max(img) - np.min(img))
+    return img
+
 def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is correct. bc background color
     model.eval()
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
         pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
         pred = pred.squeeze().cpu().numpy()
-        
+    
+    # Get the mask as a boolean array
+    mask_3d = np.repeat(train_dataset.mask[:, :, np.newaxis], 3, axis=2)
+
+    # Convert prediction to (H, W, 3) format
+    pred = np.transpose(pred, (1, 2, 0))
+    
+    # Apply background color directly
+    pred_with_bg = np.where(mask_3d, pred, np.array([0.46, 0.46, 0.46]))
+    
+    
 
     # Plotting
     plt.figure(figsize=(10, 4))
@@ -189,11 +210,11 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     plt.imshow(unnormalize(inputs))
     plt.title("Image")
     plt.subplot(1, 3, 2)
-    plt.imshow(unnormalize(gtruth))
+    #gtruth = np.transpose(gtruth, (1, 2, 0))
+    plt.imshow(minmaxscale(gtruth))
     plt.title("Ground Truth (RGB)")
     plt.subplot(1, 3, 3)
-    pred = np.transpose(pred, (1, 2, 0))
-    plt.imshow(pred) # We do not need unnormalize for output
+    plt.imshow(pred_with_bg) # We do not need unnormalize for output
     plt.title("Prediction (RGB)") 
     
     if idx == 0 or idx == 1:
