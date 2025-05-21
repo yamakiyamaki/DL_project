@@ -50,7 +50,7 @@ transform_face = A.Compose([
 ])
 
 # --------------- Dataloader ---------------
-train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transform_face=transform_face)
+train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms_face=transform_face)
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 
 
@@ -116,7 +116,7 @@ scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=10.0, step_size_up=2000,
 # --------------- Training Loop ---------------
 def train(model, dataloader, optimizer, criterion, epochs):
     model.train()
-    mask = FaceSphereDataset.maksTensor.to(device)
+    mask = train_dataset.maskTensor.to(device)
 
     start_time = time.time()
     for epoch in range(epochs):

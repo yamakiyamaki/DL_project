@@ -10,7 +10,7 @@ from albumentations.pytorch import ToTensorV2
 import albumentations as A
 
 class FaceSphereDataset(Dataset):
-    def __init__(self, root_dir, split='train', transforms_face=None, transforms_sphere=None, mask_path="./data/sphere_mask.jpg"):
+    def __init__(self, root_dir, split='train', transforms_face=None, transforms_sphere=None, mask_path="./data/SphereMask.jpg"):
         """
         Args:
             root_dir: Path to the dataset main directory
