@@ -181,7 +181,7 @@ def unnormalize(img):
     return np.clip((img * std + mean), 0, 1)
 
 def minmaxscale(img):
-    img = np.array(img).astype(np.float32) / 255.0 
+    #img = np.array(img).astype(np.float32) / 255.0 
     img = np.transpose(img, (1, 2, 0))
     #img = (img - np.min(img)) / (np.max(img) - np.min(img))
     return img
@@ -198,11 +198,13 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
 
     # Convert prediction to (H, W, 3) format
     pred = np.transpose(pred, (1, 2, 0))
+    #print(pred[126, 69])
     
     # Apply background color directly
-    pred_with_bg = np.where(mask_3d, pred, np.array([0.46, 0.46, 0.46]))
+    pred_with_bg = np.where(mask_3d, pred, np.array([0.4588, 0.4588, 0.4588]))
+    # pred_with_bg = np.array(pred_with_bg).astype(np.float32) / 255.0
     
-    
+    # pred_with_bg = minmaxscale(gtruth) * train_dataset.mask_3d
 
     # Plotting
     plt.figure(figsize=(10, 4))
@@ -215,8 +217,8 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     plt.title("Ground Truth (RGB)")
     plt.subplot(1, 3, 3)
     plt.imshow(pred_with_bg) # We do not need unnormalize for output
-    plt.title("Prediction (RGB)") 
-    
+    plt.title("Prediction (RGB)")
+
     if idx == 0 or idx == 1:
         # Save the plot as an image file in the /output directory
         outfile = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + \

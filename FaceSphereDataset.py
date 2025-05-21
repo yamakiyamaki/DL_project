@@ -41,7 +41,9 @@ class FaceSphereDataset(Dataset):
             threshold = 128  # Adjust threshold as needed
             self.mask = (sphere_mask_np > threshold).astype(np.float32)
             print(f"Loaded sphere mask from {mask_path}, shape: {self.mask.shape}")
-            self.maskTensor = self.transforms_sphere(image=self.mask)['image'].int().float()
+
+            self.mask_3d = np.repeat(self.mask[:, :, np.newaxis], 3, axis=2)
+            self.maskTensor = self.transforms_sphere(image=self.mask_3d)['image'].int().float()
 
         except Exception as e:
             print(f"Warning: Could not load sphere mask from {mask_path}: {e}")
@@ -86,6 +88,7 @@ class FaceSphereDataset(Dataset):
             face_img = augmented_face['image']  # Should now be [C, H, W]
 
         if (self.transforms_sphere):
+            sphere_img = sphere_img.astype(np.float32) / 255.0
             augmented_sphere = self.transforms_sphere(image=sphere_img)
             sphere_img = augmented_sphere['image']
 
