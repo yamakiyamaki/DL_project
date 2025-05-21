@@ -2,6 +2,8 @@
 **/train/
 **/VOCdevkit/
 *tar
+./test_output/
+./train_output/
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
