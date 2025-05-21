@@ -49,6 +49,11 @@ transform_face = A.Compose([
     ToTensorV2()
 ])
 
+transform_sphere = A.Compose([
+    A.Resize(256, 256),
+    ToTensorV2()
+])
+
 # --------------- Dataloader ---------------
 train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms_face=transform_face)
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
@@ -127,8 +132,8 @@ def train(model, dataloader, optimizer, criterion, epochs):
             outputs = model(inputs)
 
             ### USE MASK ON PREDICTION AND GROUND TRUTH
-            gtruth = gtruth * mask #.int().float()
-            outputs = outputs * mask #.int().float()
+            # gtruth = gtruth * mask.int().float()
+            # outputs = outputs * mask.int().float()
 
             # Using SSIM-based loss
             loss = criterion(outputs, gtruth)  # Replacing the old loss function

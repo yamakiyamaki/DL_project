@@ -41,7 +41,7 @@ class FaceSphereDataset(Dataset):
             threshold = 128  # Adjust threshold as needed
             self.mask = (sphere_mask_np > threshold).astype(np.float32)
             print(f"Loaded sphere mask from {mask_path}, shape: {self.mask.shape}")
-            self.maskTensor = self.transforms_sphere(image=self.mask)['image']
+            self.maskTensor = self.transforms_sphere(image=self.mask)['image'].int().float()
 
         except Exception as e:
             print(f"Warning: Could not load sphere mask from {mask_path}: {e}")
@@ -81,11 +81,13 @@ class FaceSphereDataset(Dataset):
         sphere_img = Image.open(self.sphere_images[idx]).convert('RGB')
         sphere_img = np.array(sphere_img)
 
-        augmented_face = self.transforms_face(image=face_img)
-        face_img = augmented_face['image']  # Should now be [C, H, W]
+        if (self.transforms_face):
+            augmented_face = self.transforms_face(image=face_img)
+            face_img = augmented_face['image']  # Should now be [C, H, W]
 
-        augmented_sphere = self.transforms_sphere(image=sphere_img)
-        sphere_img = augmented_sphere['image']
+        if (self.transforms_sphere):
+            augmented_sphere = self.transforms_sphere(image=sphere_img)
+            sphere_img = augmented_sphere['image']
 
         # Ensure tensors are floating point type
         if isinstance(face_img, torch.Tensor) and face_img.dtype != torch.float32:
