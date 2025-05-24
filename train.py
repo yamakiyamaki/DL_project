@@ -43,14 +43,14 @@ parser.add_argument('--sche', type=int, default=0,
 args = parser.parse_args()
 
 # --------------- Transforms ---------------
-transform = A.Compose([
+transforms_face = A.Compose([
     A.Resize(256, 256),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
-    ToTensorV2()
+    ToTensorV2() # [0, 255] --> [0.0, 1.0]
 ])
 
 # --------------- Dataloader ---------------
-train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms=transform)
+train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms_face=transforms_face)
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 
 
@@ -165,24 +165,24 @@ def unnormalize(img):
 def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is correct. bc background color
     model.eval()
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
-    with torch.no_grad():
+    with torch.no_grad(): # To save memory for visualization.
         pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
         pred = pred.squeeze().cpu().numpy()
-        
+    pred = np.transpose(pred, (1, 2, 0))
 
+    # inputs = np.transpose(inputs, (1, 2, 0))
+    gtruth = np.transpose(gtruth, (1, 2, 0))
     # Plotting
     plt.figure(figsize=(10, 4))
     plt.subplot(1, 3, 1)
     plt.imshow(unnormalize(inputs))
     plt.title("Image")
     plt.subplot(1, 3, 2)
-    plt.imshow(unnormalize(gtruth))
+    plt.imshow(gtruth)
     plt.title("Ground Truth (RGB)")
     plt.subplot(1, 3, 3)
-    pred = np.transpose(pred, (1, 2, 0))
     plt.imshow(pred) # We do not need unnormalize for output
     plt.title("Prediction (RGB)") 
-    
     if idx == 0 or idx == 1:
         # Save the plot as an image file in the /output directory
         outfile = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + \

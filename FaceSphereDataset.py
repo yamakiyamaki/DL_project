@@ -10,18 +10,22 @@ from albumentations.pytorch import ToTensorV2
 import albumentations as A
 
 class FaceSphereDataset(Dataset):
-    def __init__(self, root_dir, split='train', transforms=None):
+    def __init__(self, root_dir, split='train', transforms_face=None):
         """
         Args:
             root_dir: Path to the dataset main directory
             split: 'train' or 'test'
-            transforms: Optional transform to be applied on images
+            transforms_face: Optional transform to be applied on images
         """
         self.root_dir = os.path.join(root_dir, split)
-        self.transforms = transforms
+        self.transforms_face = transforms_face
+        self.transforms_sphere = A.Compose([
+            A.Resize(256, 256),
+            ToTensorV2() # [0, 255] --> [0.0, 1.0]
+        ])
 
-        if (not self.transforms):
-            self.transforms = A.Compose([
+        if (not self.transforms_face):
+            self.transforms_face = A.Compose([
                 ToTensorV2()
             ])
 
@@ -58,11 +62,13 @@ class FaceSphereDataset(Dataset):
         sphere_img = Image.open(self.sphere_images[idx]).convert('RGB')
         sphere_img = np.array(sphere_img)
 
-        if self.transforms:
-            augmented_face = self.transforms(image=face_img)
-            augmented_sphere = self.transforms(image=sphere_img)
+        if self.transforms_face:
+            augmented_face = self.transforms_face(image=face_img)
             face_img = augmented_face['image']  # Should now be [C, H, W]
-            sphere_img = augmented_sphere['image']
+        
+        sphere_img.astype(np.float32) / 255.0
+        augmented_sphere = self.transforms_sphere(image=sphere_img)
+        sphere_img = augmented_sphere['image']
 
         # Ensure tensors are floating point type
         if isinstance(face_img, torch.Tensor) and face_img.dtype != torch.float32:
