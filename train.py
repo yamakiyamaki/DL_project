@@ -127,6 +127,7 @@ scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=10.0, step_size_up=2000,
 def train(model, dataloader, optimizer, criterion, epochs):
     model.train()
     mask = train_dataset.maskTensor.to(device)
+    mask = mask.unsqueeze(0).repeat(args.bs, 1, 1, 1)
 
     start_time = time.time()
     for epoch in range(epochs):

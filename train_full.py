@@ -134,19 +134,29 @@ scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=10.0, step_size_up=2000,
 
 # --------------- Training Loop ---------------
 def train1(model, dataloader, optimizer, criterion, epochs):
+    global args
+
     model.train()
+    mask = train_dataset.maskTensor.to(device)
+    mask = mask.unsqueeze(0).repeat(args.bs, 1, 1, 1)
+
     start_time = time.time()
     for epoch in range(epochs):
         epoch_loss = 0
 
         prgbar= tqdm(dataloader)
-        for images, masks in prgbar:
-            images, masks = images.to(device), masks.to(device)
+        for images, gtruth in prgbar:
+            images, gtruth = images.to(device), gtruth.to(device)
 
             outputs = model(images)
 
+            ### USE MASK ON PREDICTION AND GROUND TRUTH
+            # print(f"outputs shape: {outputs.shape}, gtruth shape: {gtruth.shape}, mask shape: {mask.shape}")
+            gtruth = gtruth * mask.int().float()
+            outputs = outputs * mask.int().float()
+
             # Using SSIM-based loss
-            loss = criterion(outputs, masks)  # Replacing the old loss function
+            loss = criterion(outputs, gtruth)  # Replacing the old loss function
             # print(loss) # to check ssim is between 0 to 1.
 
             optimizer.zero_grad()
@@ -173,14 +183,15 @@ train1(model, train_loader, optimizer, loss_func, epochs=args.e)
 #     in_channels=3,
 #     classes=3,
 # ) 
-model.load_state_dict(torch.load("traintrial.pth_l1_bs16_e500_lr1e-05_sche0.pth", weights_only=True))
+
+# model.load_state_dict(torch.load("traintrial.pth_l1_bs16_e500_lr1e-05_sche0.pth", weights_only=True))
+
+#save model
+model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + \
+             '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
+torch.save(model.state_dict(), model_name)
+
 model.eval()
-
-
-# save model
-# model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + \
-#              '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
-# torch.save(model.state_dict(), model_name)
 
 # --------------- Visualization ---------------
 def normalize(img):
