@@ -43,14 +43,24 @@ parser.add_argument('--sche', type=int, default=0,
 args = parser.parse_args()
 
 # --------------- Transforms ---------------
-transform = A.Compose([
+transform_face = A.Compose([
     A.Resize(256, 256),
     A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ToTensorV2()
 ])
 
+transform_sphere = A.Compose([
+    A.Resize(256, 256),
+    ToTensorV2()
+])
+
 # --------------- Dataloader ---------------
-train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms=transform)
+train_dataset = FaceSphereDataset(
+    root_dir='./data/dataset_256px_11f_100im', 
+    split='train', 
+    transforms_face=transform_face, 
+    transforms_sphere = transform_sphere
+)
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 
 
@@ -111,16 +121,24 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 # ---------------- Learning Rate Scheduler --------------
 scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=10.0, step_size_up=2000, step_size_down=2000, mode='triangular')
 
+
+
 # --------------- Training Loop ---------------
 def train(model, dataloader, optimizer, criterion, epochs):
     model.train()
+    mask = train_dataset.maskTensor.to(device)
+
     start_time = time.time()
     for epoch in range(epochs):
         epoch_loss = 0
         for inputs, gtruth in dataloader:
             inputs, gtruth = inputs.to(device), gtruth.to(device)
-
+            
             outputs = model(inputs)
+
+            ### USE MASK ON PREDICTION AND GROUND TRUTH
+            gtruth = gtruth * mask.int().float()
+            outputs = outputs * mask.int().float()
 
             # Using SSIM-based loss
             loss = criterion(outputs, gtruth)  # Replacing the old loss function
@@ -162,13 +180,31 @@ def unnormalize(img):
     img = np.transpose(img, (1, 2, 0))
     return np.clip((img * std + mean), 0, 1)
 
+def minmaxscale(img):
+    #img = np.array(img).astype(np.float32) / 255.0 
+    img = np.transpose(img, (1, 2, 0))
+    #img = (img - np.min(img)) / (np.max(img) - np.min(img))
+    return img
+
 def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is correct. bc background color
     model.eval()
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
         pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
         pred = pred.squeeze().cpu().numpy()
-        
+    
+    # Get the mask as a boolean array
+    mask_3d = np.repeat(train_dataset.mask[:, :, np.newaxis], 3, axis=2)
+
+    # Convert prediction to (H, W, 3) format
+    pred = np.transpose(pred, (1, 2, 0))
+    #print(pred[126, 69])
+    
+    # Apply background color directly
+    pred_with_bg = np.where(mask_3d, pred, np.array([0.4588, 0.4588, 0.4588]))
+    # pred_with_bg = np.array(pred_with_bg).astype(np.float32) / 255.0
+    
+    # pred_with_bg = minmaxscale(gtruth) * train_dataset.mask_3d
 
     # Plotting
     plt.figure(figsize=(10, 4))
@@ -176,13 +212,13 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     plt.imshow(unnormalize(inputs))
     plt.title("Image")
     plt.subplot(1, 3, 2)
-    plt.imshow(unnormalize(gtruth))
+    #gtruth = np.transpose(gtruth, (1, 2, 0))
+    plt.imshow(minmaxscale(gtruth))
     plt.title("Ground Truth (RGB)")
     plt.subplot(1, 3, 3)
-    pred = np.transpose(pred, (1, 2, 0))
-    plt.imshow(pred) # We do not need unnormalize for output
-    plt.title("Prediction (RGB)") 
-    
+    plt.imshow(pred_with_bg) # We do not need unnormalize for output
+    plt.title("Prediction (RGB)")
+
     if idx == 0 or idx == 1:
         # Save the plot as an image file in the /output directory
         outfile = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + \
