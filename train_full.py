@@ -254,14 +254,14 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     pred = np.transpose(pred, (1, 2, 0))
     #print(pred[126, 69])
 
-    pred = np.clip(pred, 0, 1)  # Ensure values are between 0 and 1
+    # pred = np.clip(pred, 0, 1)  # Ensure values are between 0 and 1
     
     # Apply background color only where mask is 0
-    bg_color = np.array([0.4588, 0.4588, 0.4588])
-    pred_with_bg = pred * mask_3d + bg_color * (1 - mask_3d)
+    # bg_color = np.array([0.4588, 0.4588, 0.4588])
+    # pred_with_bg = pred * mask_3d + bg_color * (1 - mask_3d)
     
     # Apply background color directly
-    # pred_with_bg = np.where(mask_3d, pred, np.array([0.4588, 0.4588, 0.4588]))
+    pred_with_bg = np.where(mask_3d, pred, np.array([0.4588, 0.4588, 0.4588]))
     # pred_with_bg = np.array(pred_with_bg).astype(np.float32) / 255.0
     
     # pred_with_bg = minmaxscale(gtruth) * train_dataset.mask_3d
