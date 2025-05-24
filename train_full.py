@@ -133,20 +133,59 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=10.0, step_size_up=2000, step_size_down=2000, mode='triangular')
 
 # --------------- Training Loop ---------------
+# def train1(model, dataloader, optimizer, criterion, epochs):
+#     model.train()
+#     start_time = time.time()
+#     for epoch in range(epochs):
+#         epoch_loss = 0
+
+#         prgbar= tqdm(dataloader)
+#         for images, masks in prgbar:
+#             images, masks = images.to(device), masks.to(device)
+
+#             outputs = model(images)
+
+#             # Using SSIM-based loss
+#             loss = criterion(outputs, masks)  # Replacing the old loss function
+#             # print(loss) # to check ssim is between 0 to 1.
+
+#             optimizer.zero_grad()
+#             loss.backward() 
+#             optimizer.step()
+
+#             # Step the CLR scheduler after each optimizer step
+#             if args.sche==True:
+#                 scheduler.step()
+
+#             epoch_loss += loss.item()
+#         print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}, Loss for one batch:{loss}")
+#         if args.sche==True:
+#             print("Current learning rate: ", scheduler.get_lr())   
+
+#     end_time = time.time()  # End timing
+#     print(f"\n Total training time: {(end_time - start_time):.2f} seconds")
+
 def train1(model, dataloader, optimizer, criterion, epochs):
     model.train()
+    mask = train_dataset.maskTensor.to(device)
+
     start_time = time.time()
     for epoch in range(epochs):
         epoch_loss = 0
+        prgbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}", unit="batch")
+        for inputs, gtruth in prgbar:
+            inputs, gtruth = inputs.to(device), gtruth.to(device)
+            
+            outputs = model(inputs)
+             # Normalize outputs before applying mask
+            outputs = torch.sigmoid(outputs) 
 
-        prgbar= tqdm(dataloader)
-        for images, masks in prgbar:
-            images, masks = images.to(device), masks.to(device)
-
-            outputs = model(images)
+            ### USE MASK ON PREDICTION AND GROUND TRUTH
+            gtruth = gtruth * mask.int().float()
+            outputs = outputs * mask.int().float()
 
             # Using SSIM-based loss
-            loss = criterion(outputs, masks)  # Replacing the old loss function
+            loss = criterion(outputs, gtruth)  # Replacing the old loss function
             # print(loss) # to check ssim is between 0 to 1.
 
             optimizer.zero_grad()
@@ -158,6 +197,7 @@ def train1(model, dataloader, optimizer, criterion, epochs):
                 scheduler.step()
 
             epoch_loss += loss.item()
+
         print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}, Loss for one batch:{loss}")
         if args.sche==True:
             print("Current learning rate: ", scheduler.get_lr())   
@@ -173,14 +213,14 @@ train1(model, train_loader, optimizer, loss_func, epochs=args.e)
 #     in_channels=3,
 #     classes=3,
 # ) 
-model.load_state_dict(torch.load("traintrial.pth_l1_bs16_e500_lr1e-05_sche0.pth", weights_only=True))
+# model.load_state_dict(torch.load("traintrial.pth_l1_bs16_e500_lr1e-05_sche0.pth", weights_only=True))
 model.eval()
 
 
 # save model
-# model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + \
-#              '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
-# torch.save(model.state_dict(), model_name)
+model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + \
+             '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
+torch.save(model.state_dict(), model_name)
 
 # --------------- Visualization ---------------
 def normalize(img):
@@ -213,9 +253,15 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     # Convert prediction to (H, W, 3) format
     pred = np.transpose(pred, (1, 2, 0))
     #print(pred[126, 69])
+
+    pred = np.clip(pred, 0, 1)  # Ensure values are between 0 and 1
+    
+    # Apply background color only where mask is 0
+    bg_color = np.array([0.4588, 0.4588, 0.4588])
+    pred_with_bg = pred * mask_3d + bg_color * (1 - mask_3d)
     
     # Apply background color directly
-    pred_with_bg = np.where(mask_3d, pred, np.array([0.4588, 0.4588, 0.4588]))
+    # pred_with_bg = np.where(mask_3d, pred, np.array([0.4588, 0.4588, 0.4588]))
     # pred_with_bg = np.array(pred_with_bg).astype(np.float32) / 255.0
     
     # pred_with_bg = minmaxscale(gtruth) * train_dataset.mask_3d
@@ -249,7 +295,7 @@ os.makedirs(output_dir, exist_ok=True)
 
 # Visualize result
 for i in range(5):
-    visualize_prediction(model, train_dataset, idx=i)
+    visualize_prediction(model, test_dataset, idx=i)
 
 
 
