@@ -65,16 +65,28 @@ transform_sphere = A.Compose([
 # train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms=transform)
 # train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 train_dataset = FaceSphereDataset(
-    root_dir='./data/dataset_256px_11f_100im', 
+    root_dir='./data/dataset_256px_16f_100im', 
     split='train', 
     transforms_face=transform_face, 
     transforms_sphere = transform_sphere
 )
 train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 
-test_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='test', transforms_face=transform_face, 
+test_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_16f_100im', split='test', transforms_face=transform_face, 
     transforms_sphere = transform_sphere)
 test_loader = DataLoader(test_dataset, batch_size=args.bs, shuffle=False)
+
+val_dataset = FaceSphereDataset(
+    root_dir='./data/dataset_256px_16f_100im', 
+    split='val', 
+    transforms_face=transform_face, 
+    transforms_sphere = transform_sphere
+)
+val_loader = DataLoader(
+    val_dataset, 
+    batch_size=args.bs, 
+    shuffle=False
+)
 # --------------- U-Net model using ResNet34 encoder ---------------
 model = smp.Unet(
     # encoder_name="resnet34", # encoder architecture is resnet
@@ -133,46 +145,20 @@ optimizer = optim.Adam(model.parameters(), lr=args.lr)
 scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=10.0, step_size_up=2000, step_size_down=2000, mode='triangular')
 
 # --------------- Training Loop ---------------
-# def train1(model, dataloader, optimizer, criterion, epochs):
-#     model.train()
-#     start_time = time.time()
-#     for epoch in range(epochs):
-#         epoch_loss = 0
+def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs):
+    global args
 
-#         prgbar= tqdm(dataloader)
-#         for images, masks in prgbar:
-#             images, masks = images.to(device), masks.to(device)
-
-#             outputs = model(images)
-
-#             # Using SSIM-based loss
-#             loss = criterion(outputs, masks)  # Replacing the old loss function
-#             # print(loss) # to check ssim is between 0 to 1.
-
-#             optimizer.zero_grad()
-#             loss.backward() 
-#             optimizer.step()
-
-#             # Step the CLR scheduler after each optimizer step
-#             if args.sche==True:
-#                 scheduler.step()
-
-#             epoch_loss += loss.item()
-#         print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}, Loss for one batch:{loss}")
-#         if args.sche==True:
-#             print("Current learning rate: ", scheduler.get_lr())   
-
-#     end_time = time.time()  # End timing
-#     print(f"\n Total training time: {(end_time - start_time):.2f} seconds")
-
-def train1(model, dataloader, optimizer, criterion, epochs):
     model.train()
     mask = train_dataset.maskTensor.to(device)
+    mask = mask.unsqueeze(0).repeat(args.bs, 1, 1, 1)
+
+    train_losses = []
+    val_losses = []
 
     start_time = time.time()
     for epoch in range(epochs):
         epoch_loss = 0
-        prgbar = tqdm(dataloader, desc=f"Epoch {epoch+1}/{epochs}", unit="batch")
+        prgbar = tqdm(train_dataloader, desc=f"Epoch {epoch+1}/{epochs}", unit="batch")
         for inputs, gtruth in prgbar:
             inputs, gtruth = inputs.to(device), gtruth.to(device)
             
@@ -197,30 +183,72 @@ def train1(model, dataloader, optimizer, criterion, epochs):
                 scheduler.step()
 
             epoch_loss += loss.item()
+        
+        # Average training loss for this epoch
+        avg_train_loss = epoch_loss / len(train_dataloader)
+        train_losses.append(avg_train_loss)
 
-        print(f"Epoch {epoch+1}/{epochs}, Loss: {epoch_loss:.4f}, Loss for one batch:{loss}")
+        # Validation phase
+        model.eval()
+        val_epoch_loss = 0
+        
+        with torch.no_grad():
+            prgbar = tqdm(val_dataloader, desc=f"Epoch {epoch+1}/{epochs} [Valid]")
+            for images, gtruth in prgbar:
+                images, gtruth = images.to(device), gtruth.to(device)
+                
+                outputs = model(images)
+                loss = criterion(outputs, gtruth)
+                
+                val_epoch_loss += loss.item()
+        
+        # Average validation loss for this epoch
+        avg_val_loss = val_epoch_loss / len(val_dataloader)
+        val_losses.append(avg_val_loss)
+
+        print(f"Epoch {epoch+1}/{epochs}, Train Loss: {epoch_loss:.4f}, Avg Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
         if args.sche==True:
             print("Current learning rate: ", scheduler.get_lr())   
 
     end_time = time.time()  # End timing
     print(f"\n Total training time: {(end_time - start_time):.2f} seconds")
 
-train1(model, train_loader, optimizer, loss_func, epochs=args.e)
+    return train_losses, val_losses
 
+def plot_losses(train_losses, val_losses, args):
+    """Plot training and validation losses."""
+    plt.figure(figsize=(10, 6))
+    plt.plot(train_losses, label='Training Loss')
+    plt.plot(val_losses, label='Validation Loss')
+    plt.xlabel('Epochs')
+    plt.ylabel('Loss')
+    plt.title(f'Training and Validation Loss\n{args.loss} loss, LR={args.lr}, BS={args.bs}')
+    plt.legend()
+    plt.grid(True)
+    
+    # Save the plot
+    loss_plot_filename = f"LP_{args.mn}_{args.loss}_bs{args.bs}_e{args.e}_lr{args.lr}_sche{args.sche}_loss_plot.png"
+    plt.savefig(f"train_output/{loss_plot_filename}")
+    plt.show()
+
+train_losses, val_losses = train1(model, train_loader, val_loader, optimizer, loss_func, epochs=args.e)
+
+plot_losses(train_losses, val_losses, args)
 # model = smp.Unet(
 #     # encoder_name="resnet34", # encoder architecture is resnet
 #     # encoder_weights="imagenet", # this resnet pretrained on imagenet
 #     in_channels=3,
 #     classes=3,
 # ) 
+
 # model.load_state_dict(torch.load("traintrial.pth_l1_bs16_e500_lr1e-05_sche0.pth", weights_only=True))
-model.eval()
 
-
-# save model
+#save model
 model_name = args.mn + '_' + str(args.loss) + '_bs' + str(args.bs) + '_e' + str(args.e) + \
              '_lr' + str(args.lr) + '_sche' + str(args.sche) + '.pth'
 torch.save(model.state_dict(), model_name)
+
+model.eval()
 
 # --------------- Visualization ---------------
 def normalize(img):

@@ -14,7 +14,7 @@ class FaceSphereDataset(Dataset):
         """
         Args:
             root_dir: Path to the dataset main directory
-            split: 'train' or 'test'
+            split: 'train', 'test' or 'val'
             transforms: Optional transform to be applied on images
         """
         self.root_dir = os.path.join(root_dir, split)
