@@ -51,7 +51,7 @@ args = parser.parse_args()
 # ])
 transform_face = A.Compose([
     A.Resize(256, 256),
-    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    # A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ToTensorV2()
 ])
 
@@ -148,7 +148,7 @@ scheduler = CyclicLR(optimizer, base_lr=args.lr, max_lr=10.0, step_size_up=2000,
 def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs):
     global args
 
-    model.train()
+    # model.train()
     mask = train_dataset.maskTensor.to(device)
     mask = mask.unsqueeze(0).repeat(args.bs, 1, 1, 1)
 
@@ -157,6 +157,7 @@ def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs
 
     start_time = time.time()
     for epoch in range(epochs):
+        model.train()
         epoch_loss = 0
 
         prgbar= tqdm(train_dataloader)
@@ -164,18 +165,18 @@ def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs
             images, gtruth = images.to(device), gtruth.to(device)
 
             outputs = model(images)
-
+            # outputs = torch.sigmoid(outputs)  # Apply sigmoid to outputs
+            # outputs = torch.clamp(outputs, 0, 1)  # Clamp outputs to [0, 1] range
             ### USE MASK ON PREDICTION AND GROUND TRUTH
             # print(f"outputs shape: {outputs.shape}, gtruth shape: {gtruth.shape}, mask shape: {mask.shape}")
             # print("gtruth normal:", gtruth[0, :, 69, 100])
             # print("Output normal:", outputs[0, :, 69, 100])
-            # gtruth = gtruth * mask.int().float()
-            # outputs = outputs * mask.int().float()
+            gtruth = gtruth * mask.int().float()
+            outputs = outputs * mask.int().float()
 
             # print("gtruth masked:", gtruth[0, :, 69, 100])
             # print("Output masked:", outputs[0, :, 69, 100])
 
-            # Using SSIM-based loss
             loss = criterion(outputs, gtruth)  # Replacing the old loss function
             # print(loss) # to check ssim is between 0 to 1.
 
@@ -262,10 +263,10 @@ def normalize(img):
     return img
 
 def unnormalize(img):
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
+    # mean = np.array([0.485, 0.456, 0.406])
+    # std = np.array([0.229, 0.224, 0.225])
     img = np.transpose(img, (1, 2, 0))
-    return np.clip((img * std + mean), 0, 1)
+    return img
 
 def minmaxscale(img):
     #img = np.array(img).astype(np.float32) / 255.0 
@@ -277,8 +278,9 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     model.eval()
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
-        pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
-        pred = pred.squeeze().cpu().numpy()
+        # pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
+        pred = model(inputs.unsqueeze(0).to(device)).squeeze().cpu().numpy()
+        pred = np.clip(pred, 0, 1)  # Ensure prediction is in [0, 1] range
     
     # Get the mask as a boolean array
     mask_3d = np.repeat(train_dataset.mask[:, :, np.newaxis], 3, axis=2)
@@ -322,7 +324,7 @@ os.makedirs(output_dir, exist_ok=True)
 
 # Visualize result
 for i in range(5):
-    visualize_prediction(model, train_dataset, idx=i)
+    visualize_prediction(model, test_dataset, idx=i)
 
 
 
