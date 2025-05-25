@@ -57,6 +57,15 @@ def split_dataset(data_root, train_ratio=0.7, val_ratio=0.1, random_seed=351):
     test_face_ids = set(face_ids[num_train+num_val:])
     
     print(f"Split dataset: {len(train_face_ids)} faces for training, {len(val_face_ids)} faces for validation, {len(test_face_ids)} faces for testing")
+
+    # Print which faces are in validation and test sets
+    print("\nValidation set faces:")
+    for face_id in sorted(val_face_ids):
+        print(f"  {face_id}")
+        
+    print("\nTest set faces:")
+    for face_id in sorted(test_face_ids):
+        print(f"  {face_id}")
     
     # Copy files to their respective directories
     for file in face_files:

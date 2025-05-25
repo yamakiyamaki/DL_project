@@ -80,9 +80,11 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     model.eval()
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
-        pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
-        pred = pred.squeeze().cpu().numpy()
-    
+        # pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
+        # pred = pred.squeeze().cpu().numpy()
+        pred = model(inputs.unsqueeze(0).to(device)).squeeze().cpu().numpy()
+        pred = np.clip(pred, 0, 1)
+        
     # Get the mask as a boolean array
     mask_3d = np.repeat(test_dataset.mask[:, :, np.newaxis], 3, axis=2)
 

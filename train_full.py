@@ -190,7 +190,7 @@ def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs
             epoch_loss += loss.item()
         
         # Average training loss for this epoch
-        avg_train_loss = epoch_loss / len(train_dataloader)
+        avg_train_loss = epoch_loss / len(train_dataloader.dataset)
         train_losses.append(avg_train_loss)
 
         # Validation phase
@@ -208,7 +208,7 @@ def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs
                 val_epoch_loss += loss.item()
         
         # Average validation loss for this epoch
-        avg_val_loss = val_epoch_loss / len(val_dataloader)
+        avg_val_loss = val_epoch_loss / len(val_dataloader.dataset)
         val_losses.append(avg_val_loss)
 
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {epoch_loss:.4f}, Avg Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
@@ -277,9 +277,11 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     model.eval()
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
-        pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
-        pred = pred.squeeze().cpu().numpy()
-    
+        # pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
+        # pred = pred.squeeze().cpu().numpy()
+        pred = model(inputs.unsqueeze(0).to(device)).squeeze().cpu().numpy()
+        pred = np.clip(pred, 0, 1)
+        
     # Get the mask as a boolean array
     mask_3d = np.repeat(train_dataset.mask[:, :, np.newaxis], 3, axis=2)
 
@@ -292,7 +294,7 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     # pred_with_bg = np.array(pred_with_bg).astype(np.float32) / 255.0
     
     # pred_with_bg = minmaxscale(gtruth) * train_dataset.mask_3d
-
+    
     # Plotting
     plt.figure(figsize=(10, 4))
     plt.subplot(1, 3, 1)

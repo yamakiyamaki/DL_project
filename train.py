@@ -155,6 +155,7 @@ def train(model, train_dataloader, val_dataloader, optimizer, criterion, epochs)
 
     start_time = time.time()
     for epoch in range(epochs):
+        model.train()
         epoch_loss = 0
 
         prgbar= tqdm(train_dataloader)
@@ -164,9 +165,10 @@ def train(model, train_dataloader, val_dataloader, optimizer, criterion, epochs)
             outputs = model(images)
 
             ### USE MASK ON PREDICTION AND GROUND TRUTH
-            # print(f"outputs shape: {outputs.shape}, gtruth shape: {gtruth.shape}, mask shape: {mask.shape}")
+            # print(f"inputs shape: {images.shape}, outputs shape: {outputs.shape}, gtruth shape: {gtruth.shape}, mask shape: {mask.shape}")
             # print("gtruth normal:", gtruth[0, :, 69, 100])
             # print("Output normal:", outputs[0, :, 69, 100])
+            # print("Input normal:", images[0, :, 69, 100])
             # gtruth = gtruth * mask.int().float()
             # outputs = outputs * mask.int().float()
 
@@ -188,7 +190,7 @@ def train(model, train_dataloader, val_dataloader, optimizer, criterion, epochs)
             epoch_loss += loss.item()
         
         # Average training loss for this epoch
-        avg_train_loss = epoch_loss / len(train_dataloader)
+        avg_train_loss = epoch_loss / len(train_dataloader.dataset)
         train_losses.append(avg_train_loss)
 
         # Validation phase
@@ -206,7 +208,7 @@ def train(model, train_dataloader, val_dataloader, optimizer, criterion, epochs)
                 val_epoch_loss += loss.item()
         
         # Average validation loss for this epoch
-        avg_val_loss = val_epoch_loss / len(val_dataloader)
+        avg_val_loss = val_epoch_loss / len(val_dataloader.dataset)
         val_losses.append(avg_val_loss)
 
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {epoch_loss:.4f}, Avg Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
@@ -265,11 +267,18 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     model.eval()
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
-        pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
-        pred = pred.squeeze().cpu().numpy()
+        # pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
+        # pred = pred.squeeze().cpu().numpy()
+        pred = model(inputs.unsqueeze(0).to(device)).squeeze().cpu().numpy()
+        pred = np.clip(pred, 0, 1)
     
     # Get the mask as a boolean array
     mask_3d = np.repeat(train_dataset.mask[:, :, np.newaxis], 3, axis=2)
+
+    print(f"inputs shape: {inputs.shape}, outputs shape: {pred.shape}, gtruth shape: {gtruth.shape}, mask shape: {mask_3d.shape}")
+    print("gtruth normal:", gtruth[:, 160, 137])
+    print("Output normal:", pred[:, 160, 137])
+    print("Input normal:", inputs[:, 160, 137])
 
     # Convert prediction to (H, W, 3) format
     pred = np.transpose(pred, (1, 2, 0))
