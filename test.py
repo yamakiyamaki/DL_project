@@ -25,7 +25,7 @@ from FaceSphereDataset import FaceSphereDataset
 # --------------- Transforms ---------------
 transform_face = A.Compose([
     A.Resize(256, 256),
-    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    # A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ToTensorV2()
 ])
 
@@ -35,7 +35,7 @@ transform_sphere = A.Compose([
 ])
 
 # --------------- Dataloader ---------------
-test_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='test', transforms_face=transform_face, transforms_sphere=transform_sphere)
+test_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_16f_100im', split='test', transforms_face=transform_face, transforms_sphere=transform_sphere)
 
 # --- Command Line Argument Parser ---
 parser = argparse.ArgumentParser(description="Visualize U-Net prediction for VOC dataset.")
@@ -65,10 +65,10 @@ def normalize(img):
     return img
 
 def unnormalize(img):
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
+    # mean = np.array([0.485, 0.456, 0.406])
+    # std = np.array([0.229, 0.224, 0.225])
     img = np.transpose(img, (1, 2, 0))
-    return np.clip((img * std + mean), 0, 1)
+    return img # np.clip((img * std + mean), 0, 1)
 
 def minmaxscale(img):
     #img = np.array(img).astype(np.float32) / 255.0 
