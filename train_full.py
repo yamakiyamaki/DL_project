@@ -154,11 +154,16 @@ def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs
 
     train_losses = []
     val_losses = []
+    train_ssim_scores = []
+    val_ssim_scores = []
+
+    ssim_metric = StructuralSimilarityIndexMeasure(data_range=1.0).to(device)
 
     start_time = time.time()
     for epoch in range(epochs):
         model.train()
         epoch_loss = 0
+        epoch_ssim = 0
 
         prgbar= tqdm(train_dataloader)
         for images, gtruth in prgbar:
@@ -171,14 +176,18 @@ def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs
             # print(f"outputs shape: {outputs.shape}, gtruth shape: {gtruth.shape}, mask shape: {mask.shape}")
             # print("gtruth normal:", gtruth[0, :, 69, 100])
             # print("Output normal:", outputs[0, :, 69, 100])
-            gtruth = gtruth * mask.int().float()
-            outputs = outputs * mask.int().float()
+            gtruth = gtruth * mask.int().float()[:gtruth.shape[0], :, :, :]
+            outputs = outputs * mask.int().float()[:outputs.shape[0], :, :, :]
 
             # print("gtruth masked:", gtruth[0, :, 69, 100])
             # print("Output masked:", outputs[0, :, 69, 100])
 
             loss = criterion(outputs, gtruth)  # Replacing the old loss function
             # print(loss) # to check ssim is between 0 to 1.
+
+            # Calculate SSIM (as accuracy metric, not loss)
+            batch_ssim = ssim_metric(outputs, gtruth).item()
+            epoch_ssim += batch_ssim
 
             optimizer.zero_grad()
             loss.backward() 
@@ -194,9 +203,13 @@ def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs
         avg_train_loss = epoch_loss / len(train_dataloader)
         train_losses.append(avg_train_loss)
 
+        avg_train_ssim = epoch_ssim / len(train_dataloader)
+        train_ssim_scores.append(avg_train_ssim)
+
         # Validation phase
         model.eval()
         val_epoch_loss = 0
+        val_epoch_ssim = 0
         
         with torch.no_grad():
             prgbar = tqdm(val_dataloader, desc=f"Epoch {epoch+1}/{epochs} [Valid]")
@@ -204,7 +217,14 @@ def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs
                 images, gtruth = images.to(device), gtruth.to(device)
                 
                 outputs = model(images)
+
+                gtruth = gtruth * mask.int().float()[:gtruth.shape[0], :, :, :]
+                outputs = outputs * mask.int().float()[:outputs.shape[0], :, :, :]
+                
                 loss = criterion(outputs, gtruth)
+
+                batch_ssim = ssim_metric(outputs, gtruth).item()
+                val_epoch_ssim += batch_ssim
                 
                 val_epoch_loss += loss.item()
         
@@ -212,14 +232,19 @@ def train1(model, train_dataloader, val_dataloader, optimizer, criterion, epochs
         avg_val_loss = val_epoch_loss / len(val_dataloader)
         val_losses.append(avg_val_loss)
 
+        avg_val_ssim = val_epoch_ssim / len(val_dataloader)
+        val_ssim_scores.append(avg_val_ssim)
+
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {epoch_loss:.4f}, Avg Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
+        print(f"Train SSIM: {avg_train_ssim:.4f}, Val SSIM: {avg_val_ssim:.4f}")
+
         if args.sche==True:
             print("Current learning rate: ", scheduler.get_lr())   
 
     end_time = time.time()  # End timing
     print(f"\n Total training time: {(end_time - start_time):.2f} seconds")
 
-    return train_losses, val_losses
+    return train_losses, val_losses, train_ssim_scores, val_ssim_scores
 
 def plot_losses(train_losses, val_losses, args):
     """Plot training and validation losses."""
@@ -237,9 +262,26 @@ def plot_losses(train_losses, val_losses, args):
     plt.savefig(f"train_output/{loss_plot_filename}")
     plt.show()
 
-train_losses, val_losses = train1(model, train_loader, val_loader, optimizer, loss_func, epochs=args.e)
+def plot_ssim(train_ssim, val_ssim, args):
+    """Plot training and validation SSIM values."""
+    plt.figure(figsize=(10, 6))
+    plt.plot(train_ssim, label='Training SSIM')
+    plt.plot(val_ssim, label='Validation SSIM')
+    plt.xlabel('Epochs')
+    plt.ylabel('SSIM')
+    plt.title(f'Training and Validation SSIM\n{args.loss} loss, LR={args.lr}, BS={args.bs}')
+    plt.legend()
+    plt.grid(True)
+    
+    # Save the plot
+    ssim_plot_filename = f"SSIM_{args.mn}_{args.loss}_bs{args.bs}_e{args.e}_lr{args.lr}_sche{args.sche}_plot.png"
+    plt.savefig(f"train_output/{ssim_plot_filename}")
+    plt.show()
+
+train_losses, val_losses, train_ssim, val_ssim = train1(model, train_loader, val_loader, optimizer, loss_func, epochs=args.e)
 
 plot_losses(train_losses, val_losses, args)
+plot_ssim(train_ssim, val_ssim, args)
 # model = smp.Unet(
 #     # encoder_name="resnet34", # encoder architecture is resnet
 #     # encoder_weights="imagenet", # this resnet pretrained on imagenet
