@@ -25,7 +25,7 @@ from FaceSphereDataset import FaceSphereDataset
 # --------------- Transforms ---------------
 transform_face = A.Compose([
     A.Resize(256, 256),
-    A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    # A.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
     ToTensorV2()
 ])
 
@@ -35,7 +35,11 @@ transform_sphere = A.Compose([
 ])
 
 # --------------- Dataloader ---------------
+<<<<<<< HEAD
 test_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_16f_100im', split='train', transforms_face=transform_face, transforms_sphere=transform_sphere)
+=======
+test_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_16f_100im', split='test', transforms_face=transform_face, transforms_sphere=transform_sphere)
+>>>>>>> final_calibration
 
 # --- Command Line Argument Parser ---
 parser = argparse.ArgumentParser(description="Visualize U-Net prediction for VOC dataset.")
@@ -65,10 +69,10 @@ def normalize(img):
     return img
 
 def unnormalize(img):
-    mean = np.array([0.485, 0.456, 0.406])
-    std = np.array([0.229, 0.224, 0.225])
+    # mean = np.array([0.485, 0.456, 0.406])
+    # std = np.array([0.229, 0.224, 0.225])
     img = np.transpose(img, (1, 2, 0))
-    return np.clip((img * std + mean), 0, 1)
+    return img # np.clip((img * std + mean), 0, 1)
 
 def minmaxscale(img):
     #img = np.array(img).astype(np.float32) / 255.0 
@@ -81,10 +85,17 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
         # pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
+<<<<<<< HEAD
         # Use clamp instead of sigmoid
         pred = model(inputs.unsqueeze(0).to(device)).squeeze().cpu().numpy()
         pred = np.clip(pred, 0, 1)
     
+=======
+        # pred = pred.squeeze().cpu().numpy()
+        pred = model(inputs.unsqueeze(0).to(device)).squeeze().cpu().numpy()
+        pred = np.clip(pred, 0, 1)
+        
+>>>>>>> final_calibration
     # Get the mask as a boolean array
     mask_3d = np.repeat(test_dataset.mask[:, :, np.newaxis], 3, axis=2)
 

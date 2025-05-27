@@ -84,7 +84,7 @@ class FaceSphereDataset(Dataset):
         sphere_img = np.array(sphere_img)
 
         if (self.transforms_face):
-            # face_img = face_img.astype(np.float32) / 255.0
+            face_img = face_img.astype(np.float32) / 255.0
             augmented_face = self.transforms_face(image=face_img)
             face_img = augmented_face['image']  # Should now be [C, H, W]
 

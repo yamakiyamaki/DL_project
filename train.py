@@ -168,13 +168,19 @@ def train(model, train_dataloader, val_dataloader, optimizer, criterion, epochs)
             outputs = model(images)
 
             ### USE MASK ON PREDICTION AND GROUND TRUTH
-            # print(f"outputs shape: {outputs.shape}, gtruth shape: {gtruth.shape}, mask shape: {mask.shape}")
+            # print(f"inputs shape: {images.shape}, outputs shape: {outputs.shape}, gtruth shape: {gtruth.shape}, mask shape: {mask.shape}")
             # print("gtruth normal:", gtruth[0, :, 69, 100])
             # print("Output normal:", outputs[0, :, 69, 100])
+<<<<<<< HEAD
             # print("gtruth shape:", gtruth.shape)
             # print("mask shape:", mask.shape)
             gtruth = gtruth * mask.int().float()[:gtruth.shape[0], :, :, :]
             outputs = outputs * mask.int().float()[:gtruth.shape[0], :, :, :]
+=======
+            # print("Input normal:", images[0, :, 69, 100])
+            # gtruth = gtruth * mask.int().float()
+            # outputs = outputs * mask.int().float()
+>>>>>>> final_calibration
 
             # print("gtruth masked:", gtruth[0, :, 69, 100])
             # print("Output masked:", outputs[0, :, 69, 100])
@@ -194,7 +200,7 @@ def train(model, train_dataloader, val_dataloader, optimizer, criterion, epochs)
             epoch_loss += loss.item()
         
         # Average training loss for this epoch
-        avg_train_loss = epoch_loss / len(train_dataloader)
+        avg_train_loss = epoch_loss / len(train_dataloader.dataset)
         train_losses.append(avg_train_loss)
 
         # Validation phase
@@ -215,7 +221,7 @@ def train(model, train_dataloader, val_dataloader, optimizer, criterion, epochs)
                 val_epoch_loss += loss.item()
         
         # Average validation loss for this epoch
-        avg_val_loss = val_epoch_loss / len(val_dataloader)
+        avg_val_loss = val_epoch_loss / len(val_dataloader.dataset)
         val_losses.append(avg_val_loss)
 
         print(f"Epoch {epoch+1}/{epochs}, Train Loss: {epoch_loss:.4f}, Avg Loss: {avg_train_loss:.4f}, Val Loss: {avg_val_loss:.4f}")
@@ -275,12 +281,21 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
         # pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
+<<<<<<< HEAD
         # Use clamp instead of sigmoid
+=======
+        # pred = pred.squeeze().cpu().numpy()
+>>>>>>> final_calibration
         pred = model(inputs.unsqueeze(0).to(device)).squeeze().cpu().numpy()
         pred = np.clip(pred, 0, 1)
     
     # Get the mask as a boolean array
     mask_3d = np.repeat(train_dataset.mask[:, :, np.newaxis], 3, axis=2)
+
+    print(f"inputs shape: {inputs.shape}, outputs shape: {pred.shape}, gtruth shape: {gtruth.shape}, mask shape: {mask_3d.shape}")
+    print("gtruth normal:", gtruth[:, 160, 137])
+    print("Output normal:", pred[:, 160, 137])
+    print("Input normal:", inputs[:, 160, 137])
 
     # Convert prediction to (H, W, 3) format
     pred = np.transpose(pred, (1, 2, 0))
