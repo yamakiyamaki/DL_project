@@ -35,7 +35,7 @@ transform_sphere = A.Compose([
 ])
 
 # --------------- Dataloader ---------------
-test_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='test', transforms_face=transform_face, transforms_sphere=transform_sphere)
+test_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_16f_100im', split='train', transforms_face=transform_face, transforms_sphere=transform_sphere)
 
 # --- Command Line Argument Parser ---
 parser = argparse.ArgumentParser(description="Visualize U-Net prediction for VOC dataset.")
@@ -80,8 +80,10 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     model.eval()
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
-        pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
-        pred = pred.squeeze().cpu().numpy()
+        # pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
+        # Use clamp instead of sigmoid
+        pred = model(inputs.unsqueeze(0).to(device)).squeeze().cpu().numpy()
+        pred = np.clip(pred, 0, 1)
     
     # Get the mask as a boolean array
     mask_3d = np.repeat(test_dataset.mask[:, :, np.newaxis], 3, axis=2)

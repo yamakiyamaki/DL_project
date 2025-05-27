@@ -90,8 +90,8 @@ def split_dataset(data_root, train_ratio=0.7, val_ratio=0.1, random_seed=351):
 if __name__ == "__main__":
     # Parse command-line arguments
     parser = argparse.ArgumentParser(description='Split dataset into train, validation and test sets')
-    parser.add_argument('--data_dir', type=str, default='./data/dataset_256px_11f_100im/',
-                        help='Directory containing the dataset (default: ./data/dataset_256px_11f_100im/)')
+    parser.add_argument('--data_dir', type=str, default='./data/dataset_256px_16f_100im/',
+                        help='Directory containing the dataset (default: ./data/dataset_256px_16f_100im/)')
     parser.add_argument('--train_ratio', type=float, default=0.7,
                         help='Ratio of data to use for training (default: 0.7)')
     parser.add_argument('--val_ratio', type=float, default=0.1,
