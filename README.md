@@ -28,3 +28,14 @@ pip install -r requirements.txt
 # How to add libralies
 Add the libraly name to requirements.txt
 Then run this: `pip install -r requirements.txt`
+
+# Data generator
+To generate the data you can use the blender file [DLCV_data_generator.blend](./DLCV_data_generator.blend). For that, keep in mind that you will need to specify where do you want your renders, by filling in the variable `output_dir`. You should be able to see it in the python code once you open it.
+
+If you want to add or remove faces, just move them from the collection `Faces` to the `NotUsed` (or viceversa).
+
+If you add new faces, keep in mind that they should have the orientation using <ins>X</ins>YZ Euler, not quaternions.
+
+When you import a new face, just keep in mind to move it around to match the ball.
+
+NOTE: Known issue -> once you use a face for rendering, you can no longer see it in the inspector. We don't know why this happens.
