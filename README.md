@@ -15,14 +15,17 @@ conda create -n <your virtual env name> python=3.10
 conda activate <your virtual env name>
 pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 pip install -r requirements.txt
+conda install conda-forge::black
 ```
 
 # How to run
-`python3 train.py --e 50 --mn model --lr 0.001 --bs 50 --loss ssim --sche 0` 
-`python3 prediction.py --idx 5 --mn model_name.pth`
+### Split dataset
+`python3 dataset_split.py` 
+### Training
+`python3 train.py --e 50 --mn model --lr 0.0001 --bs 50 --lossmse --sche 0` 
+### Test
+`python3 test.py --idx 5 --mn model_name.pth`
 
-* idx: A index of input image that you wanna predict
-* mn: A model name when you save the model
 
 
 # How to add libralies

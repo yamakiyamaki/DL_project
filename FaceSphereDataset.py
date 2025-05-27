@@ -84,7 +84,11 @@ class FaceSphereDataset(Dataset):
         sphere_img = np.array(sphere_img)
 
         if (self.transforms_face):
+<<<<<<< HEAD
             face_img = face_img.astype(np.float32) / 255.0
+=======
+            # face_img = face_img.astype(np.float32) / 255.0 # comment out for freeze
+>>>>>>> f6fa817c (install black)
             augmented_face = self.transforms_face(image=face_img)
             face_img = augmented_face['image']  # Should now be [C, H, W]
 
