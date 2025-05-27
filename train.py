@@ -171,16 +171,10 @@ def train(model, train_dataloader, val_dataloader, optimizer, criterion, epochs)
             # print(f"inputs shape: {images.shape}, outputs shape: {outputs.shape}, gtruth shape: {gtruth.shape}, mask shape: {mask.shape}")
             # print("gtruth normal:", gtruth[0, :, 69, 100])
             # print("Output normal:", outputs[0, :, 69, 100])
-<<<<<<< HEAD
             # print("gtruth shape:", gtruth.shape)
             # print("mask shape:", mask.shape)
             gtruth = gtruth * mask.int().float()[:gtruth.shape[0], :, :, :]
             outputs = outputs * mask.int().float()[:gtruth.shape[0], :, :, :]
-=======
-            # print("Input normal:", images[0, :, 69, 100])
-            # gtruth = gtruth * mask.int().float()
-            # outputs = outputs * mask.int().float()
->>>>>>> final_calibration
 
             # print("gtruth masked:", gtruth[0, :, 69, 100])
             # print("Output masked:", outputs[0, :, 69, 100])
@@ -281,11 +275,8 @@ def visualize_prediction(model, dataset, idx=0): # TODO: check if normalize is c
     inputs, gtruth = dataset[idx]  # inputs: tensor (3,H,W), gtruth: (1,H,W) or (3,H,W)
     with torch.no_grad():
         # pred = torch.sigmoid(model(inputs.unsqueeze(0).to(device)))
-<<<<<<< HEAD
         # Use clamp instead of sigmoid
-=======
         # pred = pred.squeeze().cpu().numpy()
->>>>>>> final_calibration
         pred = model(inputs.unsqueeze(0).to(device)).squeeze().cpu().numpy()
         pred = np.clip(pred, 0, 1)
     
