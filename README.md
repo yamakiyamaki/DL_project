@@ -1,7 +1,4 @@
 # FACE TO BALL (USING SYNTHETIC DATA)
-Here you can find the training files for two approaches:
-1. `train.py`- Frozen ecoder with imagenet weigts (trains only decoder)
-2. `train_full.py`- Train both encoder and decoder
 
 ## Create environment
 We need to use python3.10 or 3.8 to use segmantation-models-pytorch
@@ -26,6 +23,9 @@ conda install conda-forge::black
 `python3 dataset_split.py` 
 ### Training
 `python3 train.py --e 50 --mn model --lr 0.0001 --bs 50 --lossmse --sche 0` 
+>Here you can find the training files for two approaches:
+1. `train.py`- Frozen ecoder with imagenet weigts (trains only decoder)
+2. `train_full.py`- Train both encoder and decoder
 ### Test
 `python3 test.py --idx 5 --mn model_name.pth`
 
