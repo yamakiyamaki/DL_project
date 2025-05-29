@@ -53,8 +53,6 @@ transform_sphere = A.Compose([A.Resize(256, 256), ToTensorV2()])
 
 
 # --------------- Dataloader ---------------
-# train_dataset = FaceSphereDataset(root_dir='./data/dataset_256px_11f_100im', split='train', transforms=transform)
-# train_loader = DataLoader(train_dataset, batch_size=args.bs, shuffle=True)
 train_dataset = FaceSphereDataset(
     root_dir="./data/dataset_256px_16f_100im",
     split="train",
