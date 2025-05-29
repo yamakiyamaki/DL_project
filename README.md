@@ -24,8 +24,8 @@ conda install conda-forge::black
 ### Training
 `python3 train.py --e 50 --mn model --lr 0.0001 --bs 50 --lossmse --sche 0` 
 >Here you can find the training files for two approaches:
-1. `train.py`- Frozen ecoder with imagenet weigts (trains only decoder)
-2. `train_full.py`- Train both encoder and decoder
+>1. `train.py`- Frozen ecoder with imagenet weigts (trains only decoder)
+>2. `train_full.py`- Train both encoder and decoder
 ### Test
 `python3 test.py --idx 5 --mn model_name.pth`
 
