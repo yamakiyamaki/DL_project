@@ -20,7 +20,16 @@ conda install conda-forge::black
 
 ## How to run
 ### Split dataset
-`python3 dataset_split.py` 
+Execute the following command: 
+`python3 dataset_split.py --data_dir <path_to_dataset> --train_ratio <float between 0 and 1> --val_ratio <float between 0 and 1> --random_seed <int>`
+
+Inside the dataset folder specified in the command, you should have a subfolder named `renders` with all the renders extracted from blender.
+
+Example:
+`python3 dataset_split.py --data_dir ./data/dataset_256px_16f_100im/ --train_ratio 0.75 --val_ratio 0.15 --random_seed 189`
+
+The split will create 3 folders, 1 for training, 1 for testing and 1 for validation, but their contents won't be synced into git.
+
 ### Training
 `python3 train.py --e 50 --mn model --lr 0.0001 --bs 50 --loss mse --sche 0` 
 >Here you can find the training files for two approaches:
