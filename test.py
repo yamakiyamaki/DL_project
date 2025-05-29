@@ -49,7 +49,7 @@ args = parser.parse_args()
 # ----- Load model -----
 model = smp.Unet( # TODO: maybe I can retrain the last few layers of the encoder
     encoder_name="resnet34", # encoder architecture is resnet
-    encoder_weights="imagenet", # this resnet pretrained on imagenet
+    # encoder_weights="imagenet", # uncomment for frozen encoder model (train.py)
     in_channels=3,
     classes=3,
 ) # encoder weight is frozen

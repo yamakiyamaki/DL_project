@@ -1,6 +1,9 @@
-Hello
+# FACE TO BALL (USING SYNTHETIC DATA)
+Here you can find the training files for two approaches:
+1. `train.py`- Frozen ecoder with imagenet weigts (trains only decoder)
+2. `train_full.py`- Train both encoder and decoder
 
-# Create environment
+## Create environment
 We need to use python3.10 or 3.8 to use segmantation-models-pytorch
 To ensure we use pytorch with GPU: pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
 ```
@@ -18,7 +21,7 @@ pip install -r requirements.txt
 conda install conda-forge::black
 ```
 
-# How to run
+## How to run
 ### Split dataset
 `python3 dataset_split.py` 
 ### Training
@@ -28,11 +31,11 @@ conda install conda-forge::black
 
 
 
-# How to add libralies
+## How to add libralies
 Add the libraly name to requirements.txt
 Then run this: `pip install -r requirements.txt`
 
-# Data generator
+## Data generator
 To generate the data you can use the blender file [DLCV_data_generator.blend](./DLCV_data_generator.blend). For that, keep in mind that you will need to specify where do you want your renders, by filling in the variable `output_dir`. You should be able to see it in the python code once you open it.
 
 If you want to add or remove faces, just move them from the collection `Faces` to the `NotUsed` (or viceversa).
